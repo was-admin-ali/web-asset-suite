@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Color Contrast Checker - Website Asset Extractor{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="tool-section" style="padding-top: 60px;">
+        <div id="contrast-checker-page" class="tool-container">
+            <h2>Color Contrast Checker</h2>
+            <p class="tool-subtitle">Ensure your text is readable and accessible for everyone.</p>
+
+            <div class="contrast-checker-layout">
+                <!-- Left Side: Results -->
+                <div class="contrast-controls">
+                    <div class="contrast-results">
+                         <div class="ratio-display-wrapper">
+                            <div id="ratio-circle" class="ratio-circle">
+                                <span id="contrast-ratio">21.00</span>
+                                <label>Ratio</label>
+                            </div>
+                        </div>
+                        
+                        <div class="wcag-ratings-grid">
+                            <div id="rating-normal-aa" class="wcag-rating-card">
+                                <div class="level">Normal Text <span>(AA)</span></div>
+                                <div class="status"></div>
+                            </div>
+                            <div id="rating-large-aa" class="wcag-rating-card">
+                                <div class="level">Large Text <span>(AA)</span></div>
+                                <div class="status"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Side: Preview & Controls Wrapper -->
+                <div class="preview-and-controls-wrapper">
+                    <!-- Preview Panel -->
+                    <div id="contrast-preview" class="contrast-preview">
+                        <h3>Example Heading</h3>
+                        <p>This is a paragraph of body text. It's designed to give you a real-time preview of how your chosen color combination will look.</p>
+                        <button id="preview-button" class="btn">Example Button</button>
+                    </div>
+
+                    <!-- Color Inputs Panel -->
+                    <div class="color-inputs-container">
+                        <div class="color-input-group">
+                            <label for="text-color-hex">Text Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="text-color-swatch" class="color-input-swatch" value="#FFFFFF">
+                                <input type="text" id="text-color-hex" class="color-input-hex" value="#FFFFFF" maxlength="7">
+                            </div>
+                        </div>
+
+                        <button id="swap-colors-btn" aria-label="Swap text and background colors">
+                            <img src="{{ url_for('static', filename='img/Switch button.svg') }}" alt="Swap Colors">
+                        </button>
+
+                        <div class="color-input-group">
+                            <label for="bg-color-hex">Background Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="bg-color-swatch" class="color-input-swatch" value="#000000">
+                                <input type="text" id="bg-color-hex" class="color-input-hex" value="#000000" maxlength="7">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Palette Contrast Checker Section -->
+        <div id="palette-contrast-checker" class="tool-container" style="margin-top: 40px;">
+            <h2>Palette Contrast Checker</h2>
+            <p class="tool-subtitle">Check all color combinations in your palette at once.</p>
+            
+            <div id="palette-inputs">
+                <!-- Color inputs will be dynamically added here by JavaScript -->
+            </div>
+
+            <div class="palette-buttons">
+                <button id="add-color-btn" class="btn btn-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20" style="margin-right: 8px;"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
+                    Add Color
+                </button>
+                <button id="check-palette-btn" class="btn btn-primary">Check Palette</button>
+            </div>
+            
+            <div id="palette-results-container" class="hidden">
+                 <h3>Contrast Grid</h3>
+                 <p class="tool-subtitle" style="margin-top: -5px; margin-bottom: 25px;">Each cell shows the contrast ratio between the row and column color.</p>
+                 <div id="palette-results-grid">
+                    <!-- Grid will be generated here by JavaScript -->
+                 </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

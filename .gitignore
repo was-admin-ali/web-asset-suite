@@ -1,0 +1,17 @@
+# Environment & Credentials
+.env
+credentials.json
+instance/
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv
+venv/
+env/
+
+gunicorn

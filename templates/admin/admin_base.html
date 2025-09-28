@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block admin_title %}Admin Dashboard{% endblock %} - Web Asset Suite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.7">
+    
+    <!-- START: FAVICON LINKS (IMPROVED) -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+    <!-- END: FAVICON LINKS -->
+
+    <!-- START: THEME FIX SCRIPT -->
+    <script>
+        // The admin panel is dark-theme only, so we just set it directly.
+        document.documentElement.setAttribute('data-theme', 'dark');
+    </script>
+    <!-- END: THEME FIX SCRIPT -->
+
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <div class="logo">
+                <a href="{{ url_for('home') }}">
+                    <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Logo">
+                </a>
+            </div>
+            <nav class="admin-nav">
+                <!-- START: NEW DROPDOWN STRUCTURE -->
+                {% set analytics_endpoints = ['admin_dashboard', 'acquisition_analytics', 'engagement_analytics', 'creative_insights', 'real_time_analytics'] %}
+                <div class="admin-nav-group">
+                    <button class="admin-nav-toggle {{ 'active' if request.endpoint in analytics_endpoints }}">
+                        Analytics
+                        <span class="chevron"></span>
+                    </button>
+                    <div class="admin-nav-submenu {{ 'is-open' if request.endpoint in analytics_endpoints }}">
+                        <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if 'dashboard' in request.endpoint }}">Overview</a>
+                        <a href="{{ url_for('acquisition_analytics') }}" class="{{ 'active' if 'acquisition_analytics' in request.endpoint }}">Acquisition Analytics</a>
+                        <a href="{{ url_for('engagement_analytics') }}" class="{{ 'active' if 'engagement_analytics' in request.endpoint }}">Engagement & Behavior</a>
+                        <a href="{{ url_for('creative_insights') }}" class="{{ 'active' if 'creative_insights' in request.endpoint }}">Creative-Specific Insights</a>
+                        <a href="{{ url_for('real_time_analytics') }}" class="{{ 'active' if 'real_time_analytics' in request.endpoint }}">Real-Time Tracking</a>
+                    </div>
+                </div>
+                <!-- END: NEW DROPDOWN STRUCTURE -->
+                <hr>
+                <a href="{{ url_for('manage_users') }}" class="{{ 'active' if 'manage_users' in request.endpoint or 'view_user' in request.endpoint or 'edit_user' in request.endpoint }}">Manage Users</a>
+                <a href="{{ url_for('manage_subscribers') }}" class="{{ 'active' if 'manage_subscribers' in request.endpoint }}">Manage Subscribers</a>
+                
+                <!-- START: UPDATED POSTS DROPDOWN -->
+                {% set posts_endpoints = ['manage_posts', 'post_editor', 'manage_categories'] %}
+                <div class="admin-nav-group">
+                    <button class="admin-nav-toggle {{ 'active' if request.endpoint in posts_endpoints }}">
+                        Posts
+                        <span class="chevron"></span>
+                    </button>
+                    <div class="admin-nav-submenu {{ 'is-open' if request.endpoint in posts_endpoints }}">
+                        <a href="{{ url_for('manage_posts') }}" class="{{ 'active' if 'manage_posts' in request.endpoint or 'post_editor' in request.endpoint }}">All Posts</a>
+                        <a href="{{ url_for('manage_categories') }}" class="{{ 'active' if 'manage_categories' in request.endpoint }}">Categories</a>
+                    </div>
+                </div>
+                <!-- END: UPDATED POSTS DROPDOWN -->
+
+                <hr>
+                <a href="{{ url_for('home') }}">&larr; Back to Main Site</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </aside>
+        <main class="admin-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}" style="margin-top: 0; margin-bottom: 20px;">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block admin_content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.admin-nav-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const submenu = this.nextElementSibling;
+                    const allSubmenus = document.querySelectorAll('.admin-nav-submenu');
+                    
+                    // Close other submenus
+                    allSubmenus.forEach(sm => {
+                        if (sm !== submenu) {
+                            sm.classList.remove('is-open');
+                            sm.previousElementSibling.classList.remove('active');
+                        }
+                    });
+
+                    // Toggle current one
+                    submenu.classList.toggle('is-open');
+                    this.classList.toggle('active', submenu.classList.contains('is-open'));
+                });
+            });
+        });
+    </script>
+</body>
+</html>

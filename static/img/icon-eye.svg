@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <g id="Layer_1-2" data-name="Layer 1" transform="translate(2.145, 5)">
+    <path fill="currentColor" d="M9.85,0C4.46,0,.93,5.39,0,7c.93,1.6,4.48,7,9.85,7s8.93-5.39,9.86-7c-.94-1.61-4.48-7-9.86-7Zm0,11c-2.2,0-4-1.8-4-4s1.8-4,4-4,4,1.79,4,4-1.79,4-4,4Z"/>
+    <circle fill="currentColor" cx="9.85" cy="7" r="2"/>
+  </g>
+</svg>

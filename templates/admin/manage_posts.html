@@ -1,0 +1,114 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Manage Posts{% endblock %}
+
+{% block admin_content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h1>Manage Blog Posts</h1>
+    <a href="{{ url_for('post_editor') }}" class="btn btn-primary">+ New Post</a>
+</div>
+
+<!-- Search and Filter Form -->
+<div class="admin-main-panel" style="margin-bottom: 30px; padding: 25px;">
+    <form method="GET" action="{{ url_for('manage_posts') }}">
+        <div style="display: flex; gap: 20px; align-items: flex-end;">
+            <div style="flex-grow: 1;">
+                <label for="search" style="font-weight: 700; margin-bottom: 10px; display: block;">Search Title/Author</label>
+                <input type="text" id="search" name="search" class="auth-input" placeholder="e.g., Design Trends" value="{{ search or '' }}">
+            </div>
+            <div>
+                <label for="category" style="font-weight: 700; margin-bottom: 10px; display: block;">Category</label>
+                <select name="category" id="category" class="auth-input">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.slug }}" {% if cat.slug == category_filter %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="status" style="font-weight: 700; margin-bottom: 10px; display: block;">Status</label>
+                <select name="status" id="status" class="auth-input">
+                    <option value="">All Statuses</option>
+                    <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Published</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding: 12px 25px;">Filter</button>
+        </div>
+    </form>
+</div>
+
+<form method="POST" action="{{ url_for('bulk_post_action') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="admin-table-wrapper">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th style="width: 20px;"><input type="checkbox" id="select-all"></th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Category</th>
+                    <th>Tags</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in posts.items %}
+                <tr>
+                    <td><input type="checkbox" name="post_ids" value="{{ post.id }}" class="post-checkbox"></td>
+                    <td><a href="{{ url_for('post_editor', post_id=post.id) }}" style="font-weight: 700;">{{ post.title }}</a></td>
+                    <td>{{ post.author.first_name if post.author else '[Deleted User]' }}</td>
+                    <td>{{ post.category.name if post.category else 'N/A' }}</td>
+                    <td>
+                        {% for tag in post.tags %}
+                            <span class="tag-badge">{{ tag.name }}</span>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">--</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ post.status }}">{{ post.status }}</span>
+                    </td>
+                    <td>{{ post.pub_date.strftime('%b %d, %Y') }}</td>
+                    <td>
+                        <a href="{{ url_for('post_editor', post_id=post.id) }}" class="btn btn-secondary">Edit</a>
+                        <a href="{{ url_for('preview_post', post_id=post.id) }}" target="_blank" class="btn btn-secondary">Preview</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" style="text-align: center; padding: 40px;">No posts found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; gap: 15px; align-items: center;">
+        <select name="action" class="auth-input" style="width: 200px;">
+            <option value="">Bulk Actions</option>
+            <option value="published">Set to Published</option>
+            <option value="draft">Set to Draft</option>
+            <option value="delete">Delete</option>
+        </select>
+        <button type="submit" class="btn btn-secondary">Apply</button>
+    </div>
+
+    {% if posts.pages > 1 %}
+    <div style="margin-top: 30px; text-align: center;">
+        {% if posts.has_prev %}<a href="{{ url_for('manage_posts', page=posts.prev_num, search=search, category=category_filter, status=status_filter, sort=sort_by) }}" class="btn btn-secondary">&laquo; Previous</a>{% endif %}
+        <span style="padding: 0 15px;">Page {{ posts.page }} of {{ posts.pages }}</span>
+        {% if posts.has_next %}<a href="{{ url_for('manage_posts', page=posts.next_num, search=search, category=category_filter, status=status_filter, sort=sort_by) }}" class="btn btn-secondary">Next &raquo;</a>{% endif %}
+    </div>
+    {% endif %}
+</form>
+
+<script>
+document.getElementById('select-all').addEventListener('change', function(e) {
+    document.querySelectorAll('.post-checkbox').forEach(checkbox => {
+        checkbox.checked = e.target.checked;
+    });
+});
+</script>
+{% endblock %}

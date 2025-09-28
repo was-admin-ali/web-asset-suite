@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - Assets Extractor{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="post-page-container">
+        <!-- Main Post Header -->
+        <div class="post-header-grid">
+            <div class="post-header-content">
+                <h1>{{ post.title }}</h1>
+                <p class="post-excerpt">{{ post.meta_description or (post.content | striptags | truncate(150)) }}</p>
+                <div class="post-meta-bar">
+                    <span>{{ read_time }} min read</span>
+                    <span>•</span>
+                    <span>{{ post.pub_date.strftime('%B %d, %Y') }}</span>
+                    {% if post.category %}
+                    <span>•</span>
+                    <span>{{ post.category.name }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="post-author-box">
+                    <div class="post-author-icon">
+                        <img src="{{ url_for('static', filename='img/logomark-light-theme.svg') }}" alt="Site Author Logomark" class="author-logomark-light">
+                        <img src="{{ url_for('static', filename='img/logomark-dark-theme.svg') }}" alt="Site Author Logomark" class="author-logomark-dark">
+                    </div>
+                    <div>
+                        <strong>Admin</strong>
+                        <small>Author</small>
+                    </div>
+                </div>
+
+            </div>
+            {% if post.featured_image %}
+            <div class="post-header-image">
+                <img src="{{ url_for('uploaded_file', filename=post.featured_image) }}" alt="{{ post.title }}">
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Two-Column Layout -->
+        <div class="post-layout">
+            <!-- Left Sidebar -->
+            <aside class="post-sidebar">
+                <div class="sidebar-sticky-content">
+                    {% if toc %}
+                    <div class="sidebar-widget">
+                        <h4>JUMP TO SECTION</h4>
+                        <ul class="toc-list">
+                            {% for item in toc %}
+                            <li><a href="#{{ item.id }}" class="toc-link-{{ item.level }}">{{ item.text | truncate(28) }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    <div class="sidebar-widget share-widget-transparent">
+                        <h4>SHARE TO</h4>
+                        <!-- START: FUNCTIONAL SHARE LINKS -->
+                        <div class="share-icons">
+                            <a href="https://twitter.com/intent/tweet?url={{ url_for('view_post', slug=post.slug, _external=True) }}&text={{ post.title|urlencode }}" target="_blank" rel="noopener noreferrer" class="share-icon-link">X</a>
+                            <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ url_for('view_post', slug=post.slug, _external=True) }}" target="_blank" rel="noopener noreferrer" class="share-icon-link">in</a>
+                        </div>
+                        <!-- END: FUNCTIONAL SHARE LINKS -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="post-main-content">
+                {% if is_preview %}
+                <div class="admin-actions" style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+                    <a href="{{ url_for('post_editor', post_id=post.id) }}" class="btn btn-secondary">Edit Post</a>
+                    <form method="POST" action="{{ url_for('delete_post', post_id=post.id) }}" onsubmit="return confirm('Are you sure?');" style="display: inline;">
+                        <button type="submit" class="btn btn-secondary" style="background-color: #8C1C1B; color: white;">Delete Post</button>
+                    </form>
+                </div>
+                {% endif %}
+                <div class="post-body">
+                    {{ content | safe }}
+                </div>
+            </main>
+        </div>
+    </div>
+</div>
+{% endblock %}

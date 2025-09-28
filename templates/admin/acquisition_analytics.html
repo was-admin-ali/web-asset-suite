@@ -1,0 +1,125 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Acquisition Analytics{% endblock %}
+
+{% block admin_content %}
+<h1>Acquisition Analytics</h1>
+<p class="tool-subtitle" style="margin-bottom: 30px;">Understand where your users are coming from (data from last 30 days via GA).</p>
+
+{% if ga_data %}
+<div class="admin-section-grid" style="grid-template-columns: 1fr 1.5fr; align-items: flex-start;">
+    <!-- Left Side: Traffic Sources Chart -->
+    <div class="admin-main-panel">
+        <h2 class="admin-panel-title">Traffic Sources by Channel</h2>
+        <div class="chart-container" style="height: 350px;">
+            <canvas id="traffic-sources-chart" data-channels="{{ ga_data.sessions_by_channel | tojson | e if ga_data.sessions_by_channel else '{}' }}"></canvas>
+        </div>
+    </div>
+
+    <!-- Right Side: Tables -->
+    <div class="admin-side-panel" style="margin-top: 0;">
+        <!-- Top Referral Sources -->
+        <div class="admin-table-wrapper">
+            <h2 class="admin-panel-title" style="padding: 20px; margin: 0; border-bottom: 1px solid var(--border-color);">Top Referral Sources</h2>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th style="text-align: right;">Sessions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for source, sessions in ga_data.top_referrals.items() %}
+                    <tr>
+                        <td title="{{ source }}">{{ source | truncate(30) }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ "{:,}".format(sessions) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="2">No referral data available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Search Keywords Notice -->
+        <div class="admin-main-panel" style="padding: 25px;">
+             <h2 class="admin-panel-title">Top Keywords / Queries</h2>
+             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+                For privacy reasons, detailed organic search keywords are no longer available in Google Analytics. To see which queries bring users to your site, you should use <strong>Google Search Console</strong>.
+             </p>
+             <a href="https://search.google.com/search-console" target="_blank" class="btn btn-secondary" style="margin-top: 15px;">Open Search Console</a>
+        </div>
+
+        <!-- Referral Program Placeholder -->
+        <div class="admin-main-panel" style="padding: 25px;">
+             <h2 class="admin-panel-title">Referral Program Performance</h2>
+             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+                Your referral program analytics will be displayed here once the feature is launched.
+             </p>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="admin-main-panel">
+    <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+        Could not connect to Google Analytics. Please ensure your credentials are set up correctly.
+    </p>
+</div>
+{% endif %}
+
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const trafficCanvas = document.getElementById('traffic-sources-chart');
+    if (trafficCanvas) {
+        try {
+            const channelData = JSON.parse(trafficCanvas.dataset.channels);
+            const labels = Object.keys(channelData);
+            const data = Object.values(channelData);
+
+            if (labels.length > 0) {
+                new Chart(trafficCanvas.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Sessions',
+                            data: data,
+                            backgroundColor: [
+                                '#4A69FF', '#10B981', '#F59E0B', '#EF4444', 
+                                '#8B5CF6', '#3B82F6', '#6EE7B7', '#93C5FD'
+                            ],
+                            borderColor: 'var(--bg-secondary)',
+                            borderWidth: 4,
+                            hoverOffset: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: 'var(--text-primary)',
+                                    boxWidth: 20,
+                                    padding: 15,
+                                    font: { size: 14 }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                 trafficCanvas.parentElement.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding: 20px;">No traffic source data available to display.</p>';
+            }
+        } catch (e) {
+            console.error("Error parsing traffic source data:", e);
+            trafficCanvas.parentElement.innerHTML = '<p style="color: var(--text-secondary);">Could not load chart data.</p>';
+        }
+    }
+});
+</script>
+{% endblock %}

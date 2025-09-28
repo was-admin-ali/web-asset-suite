@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Web Asset Suite{% endblock %}</title>
+
+    <!-- START: Google Analytics Tag -->
+    {% if GA_MEASUREMENT_ID %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '{{ GA_MEASUREMENT_ID }}');
+    </script>
+    {% endif %}
+    <!-- END: Google Analytics Tag -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/device-mockups@1.0.0/dist/device-mockups.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.5">
+    <link id="font-pairing-google-font" rel="stylesheet">
+    
+    <!-- START: FAVICON LINKS (IMPROVED) -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+    <!-- END: FAVICON LINKS -->
+
+    <!-- START: THEME FIX SCRIPT -->
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('theme');
+                if (theme) {
+                    document.documentElement.setAttribute('data-theme', theme);
+                } else {
+                    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+                }
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+    <!-- END: THEME FIX SCRIPT -->
+
+</head>
+<body data-is-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
+
+    <header class="main-header">
+        <div class="container">
+            <div class="logo">
+                <a href="{{ url_for('home') }}" aria-label="Web Asset Suite Home">
+                    <img src="{{ url_for('static', filename='img/logo-light-theme.svg') }}" alt="Web Asset Suite Logo" class="logo-light">
+                    <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Web Asset Suite Logo" class="logo-dark">
+                </a>
+            </div>
+            <nav class="main-nav">
+                <a href="{{ url_for('home') }}">Home</a>
+                <div class="nav-item dropdown">
+                    <a href="#" class="dropdown-toggle">
+                        Tools
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width: 14px; height: 14px;">
+                          <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                    <div class="dropdown-content">
+                        <a href="{{ url_for('extractor_page') }}">Asset Extractor</a>
+                        <a href="{{ url_for('compressor_page') }}">Image Compressor</a>
+                        <a href="{{ url_for('contrast_checker_page') }}">Contrast Checker</a>
+                        <a href="{{ url_for('font_pairings_page') }}">Font Pairings</a>
+                    </div>
+                </div>
+                <a href="{{ url_for('blog_list') }}">Blog</a>
+                <a href="{{ url_for('contact_page') }}">Contact</a>
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                    <a href="{{ url_for('admin_dashboard') }}" style="color: var(--accent-secondary);">Admin Dashboard</a>
+                {% endif %}
+            </nav>
+            <div class="header-actions">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign in</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary">Try for free</a>
+                {% endif %}
+                <button id="theme-toggle" class="theme-toggle-btn" title="Toggle theme">
+                    <img src="{{ url_for('static', filename='img/icon-sun.svg') }}" alt="Toggle to Dark Mode" class="sun-icon">
+                    <img src="{{ url_for('static', filename='img/icon-moon.svg') }}" alt="Toggle to Light Mode" class="moon-icon">
+                </button>
+            </div>
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Open navigation menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div id="mobile-nav" class="mobile-nav">
+                <a href="{{ url_for('home') }}" class="mobile-nav-link">Home</a>
+                <a href="{{ url_for('extractor_page') }}" class="mobile-nav-link">Asset Extractor</a>
+                <a href="{{ url_for('compressor_page') }}" class="mobile-nav-link">Image Compressor</a>
+                <a href="{{ url_for('contrast_checker_page') }}" class="mobile-nav-link">Contrast Checker</a>
+                <a href="{{ url_for('font_pairings_page') }}" class="mobile-nav-link">Font Pairings</a>
+                <a href="{{ url_for('blog_list') }}" class="mobile-nav-link">Blog</a>
+                <a href="{{ url_for('contact_page') }}" class="mobile-nav-link">Contact</a>
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('logout') }}" class="mobile-nav-link">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="mobile-nav-link">Sign in</a>
+                    <a href="{{ url_for('register') }}" class="btn btn-primary mobile-nav-btn">Try for free &rarr;</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <div id="image-modal" class="image-modal">
+        <span id="modal-close-btn" class="modal-close-btn">&times;</span>
+        <img id="modal-image" class="modal-image" src="" alt="Enlarged image preview">
+    </div>
+
+    <!-- START: NEW USAGE LIMIT MODAL -->
+    <div id="usage-limit-modal" class="usage-limit-modal">
+        <div class="usage-limit-modal-content">
+            <button id="usage-limit-close-btn" class="modal-close-btn">&times;</button>
+            <h3>Usage Limit Reached</h3>
+            <p>You've used your 3 free tool uses. Please create a free account to continue using our tools without limits.</p>
+            <div class="final-cta-buttons" style="margin-top: 25px;">
+                <a href="{{ url_for('register') }}" class="btn btn-primary">Create Free Account</a>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
+            </div>
+        </div>
+    </div>
+    <!-- END: NEW USAGE LIMIT MODAL -->
+
+    <footer class="advanced-footer">
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-column footer-subscribe-wrapper">
+                    <div class="footer-subscribe">
+                        <h4>Stay Updated</h4>
+                        <p>Get notified when we launch new tools and features.</p>
+                        <form class="footer-subscribe-form" method="POST" action="{{ url_for('subscribe') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="email" name="email" placeholder="Enter your email" required>
+                            <button type="submit" aria-label="Subscribe">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="footer-column footer-links">
+                    <h4>Tools</h4>
+                    <ul>
+                        <li><a href="{{ url_for('extractor_page') }}">Asset Extractor</a></li>
+                        <li><a href="{{ url_for('compressor_page') }}">Image Compressor</a></li>
+                        <li><a href="{{ url_for('contrast_checker_page') }}">Contrast Checker</a></li>
+                        <li><a href="{{ url_for('font_pairings_page') }}">Font Pairings</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column footer-links">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="{{ url_for('about_page') }}">About Us</a></li>
+                        <li><a href="{{ url_for('contact_page') }}">Contact</a></li>
+                        <li><a href="{{ url_for('privacy_page') }}">Privacy Policy</a></li>
+                        <li><a href="{{ url_for('terms_page') }}">Terms & Conditions</a></li>
+                        <li><a href="{{ url_for('disclaimer_page') }}">Disclaimer</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p class="copyright">© 2025 Web Asset Suite. All rights reserved.</p>
+                <div class="footer-social">
+                    <a href="#" target="_blank" aria-label="Facebook">
+                        <img src="{{ url_for('static', filename='img/facebook.svg') }}" alt="Facebook Icon">
+                    </a>
+                    <a href="#" target="_blank" aria-label="Instagram">
+                        <img src="{{ url_for('static', filename='img/instagram.svg') }}" alt="Instagram Icon">
+                    </a>
+                    <a href="#" target="_blank" aria-label="YouTube">
+                        <img src="{{ url_for('static', filename='img/youtube.svg') }}" alt="YouTube Icon">
+                    </a>
+                    <a href="#" target="_blank" aria-label="TikTok">
+                        <img src="{{ url_for('static', filename='img/tiktok.svg') }}" alt="TikTok Icon">
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

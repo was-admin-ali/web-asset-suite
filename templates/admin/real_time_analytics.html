@@ -1,0 +1,189 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Real-Time Tracking{% endblock %}
+
+{% block admin_content %}
+<h1>Real-Time User Tracking</h1>
+<p class="tool-subtitle" style="margin-bottom: 30px;">See what's happening on your application right now.</p>
+
+{% if ga_data %}
+<!-- Top Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Users Online Now</h3>
+        <span class="stat-number">{{ ga_data.realtime_total }}</span>
+        <h3 style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">(from GA)</h3>
+    </div>
+</div>
+
+<!-- Live Map & Activity -->
+<div class="admin-section-grid" style="grid-template-columns: 2fr 1fr; align-items: flex-start; margin-top: 30px;">
+    <!-- Left Side: Globe -->
+    <div class="admin-main-panel" style="padding: 0; position: relative; background: #000010; border-radius: 16px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <h2 class="admin-panel-title" style="position: absolute; top: 20px; left: 20px; z-index: 10; font-size: 1.5rem;">Live View</h2>
+        
+        <div id="globe-viz" style="height: 650px; width: 100%; cursor: grab;"></div>
+    </div>
+
+    <!-- Right Side: Recent Activity -->
+    <div class="admin-side-panel" style="margin-top: 0;">
+        <div class="admin-table-wrapper">
+            <h2 class="admin-panel-title" style="padding: 20px; margin: 0; border-bottom: 1px solid var(--border-color);">Tools Used (Last 15 Min)</h2>
+            <table class="admin-table">
+                 <tbody>
+                    {% for tool, count in recent_tool_usages.items() %}
+                    <tr>
+                        <td style="text-transform: capitalize;">{{ tool }}</td>
+                        <td style="text-align: right; font-weight: 700;">{{ count }} uses</td>
+                    </tr>
+                    {% else %}
+                    <tr><td>No tool usage in the last 15 minutes.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="admin-table-wrapper">
+             <h2 class="admin-panel-title" style="padding: 20px; margin: 0; border-bottom: 1px solid var(--border-color);">Live User Details (from GA)</h2>
+             <div style="max-height: 400px; overflow-y: auto;">
+                <table class="admin-table">
+                    <tbody>
+                        {% for user in ga_data.realtime_user_list %}
+                        <tr>
+                            <td>{% if user.city and user.city != '(not set)' %}{{ user.city }},{% endif %} {{ user.country }}</td>
+                            <td style="color: var(--text-secondary);">{{ user.device }}</td>
+                            <td style="text-align: right; color: var(--text-secondary);" title="{{ user.page }}">{{ user.page | truncate(20) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td>No active users to display.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Features Placeholder -->
+<div class="admin-main-panel" style="margin-top: 30px;">
+    <h2 class="admin-panel-title">User Session Timeline, Replay & Heatmaps</h2>
+    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+       Advanced real-time features like live session replay, click heatmaps, and detailed user journey timelines provide invaluable insights but require specialized, high-performance tracking scripts.
+       <br><br>
+       Implementing this functionality natively is a significant engineering effort. For a production-ready solution, we recommend integrating a dedicated third-party service such as <strong>Hotjar, LogRocket,</strong> or <strong>FullStory</strong>. These platforms are purpose-built for this kind of deep, real-time user behavior analysis.
+    </p>
+</div>
+
+{% else %}
+<div class="admin-main-panel">
+    <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+        Could not connect to Google Analytics to fetch real-time data. Please ensure your credentials are set up correctly.
+    </p>
+</div>
+{% endif %}
+
+
+<!-- START: FINAL SCRIPT LOADING -->
+<script src="//unpkg.com/three"></script>
+<script src="//unpkg.com/topojson-client"></script>
+<script src="//unpkg.com/d3"></script>
+<script src="//unpkg.com/globe.gl"></script>
+<!-- END: FINAL SCRIPT LOADING -->
+
+
+<script>
+document.addEventListener('DOMContentLoaded', async function () {
+    const globeContainer = document.getElementById('globe-viz');
+    if (!globeContainer) return;
+
+    try {
+        const userData = JSON.parse('{{ ga_data.realtime_user_list | tojson | safe if ga_data.realtime_user_list else "[]" }}');
+        
+        if (userData.length === 0) {
+            globeContainer.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px; font-size: 1.2rem;">Waiting for live visitors...</p>';
+            return;
+        }
+
+        const worldResponse = await fetch('//unpkg.com/world-atlas/countries-110m.json');
+        if (!worldResponse.ok) throw new Error('Failed to load geographic data.');
+        const world = await worldResponse.json();
+        
+        const countries = topojson.feature(world, world.objects.countries).features;
+        const countryCenterMap = new Map(countries.map(d => [d.properties.name, d3.geoCentroid(d)]));
+        const countryNameMap = { "United States": "United States of America", "Western Sahara": "W. Sahara" };
+        const laayouneCoords = { lat: 27.1536, lng: -13.2033 };
+
+        // --- START: THE CRITICAL FIX IS HERE ---
+        const locationCounts = {};
+        userData.forEach(user => {
+            const locationKey = user.country; 
+            if (!locationCounts[locationKey]) {
+                locationCounts[locationKey] = {
+                    country: user.country,
+                    pages: new Set() // Use a Set to track unique pages
+                };
+            }
+            locationCounts[locationKey].pages.add(user.page);
+        });
+
+        // The total number of users is the number of unique locations
+        const totalUsers = Object.keys(locationCounts).length;
+        
+        const aggregatedPoints = Object.values(locationCounts).map(loc => {
+            let coords;
+            if (loc.country === "Western Sahara") {
+                coords = [laayouneCoords.lng, laayouneCoords.lat];
+            } else {
+                const mappedCountryName = countryNameMap[loc.country] || loc.country;
+                coords = countryCenterMap.get(mappedCountryName);
+            }
+
+            if (!coords) return null;
+            
+            // The count is now the number of active pages/sessions for that user
+            const activityCount = loc.pages.size;
+
+            return {
+                lat: coords[1],
+                lng: coords[0],
+                count: activityCount,
+                label: `1 user (${activityCount} active pages) in ${loc.country}`
+            };
+        }).filter(Boolean);
+        // --- END: THE CRITICAL FIX IS HERE ---
+
+        if (aggregatedPoints.length === 0) throw new Error('Could not map any visitor locations.');
+
+        const globe = Globe()
+            (globeContainer)
+            .width(globeContainer.clientWidth)
+            .height(globeContainer.clientHeight)
+            .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+            .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+            .polygonsData(countries)
+            .polygonCapColor(() => 'rgba(50, 50, 80, 0.7)')
+            .polygonSideColor(() => 'rgba(20, 20, 40, 0.4)')
+            .polygonStrokeColor(() => '#555')
+            .pointsData(aggregatedPoints)
+            .pointColor(() => '#8295FF')
+            .pointAltitude(0.015)
+            .pointRadius(0.5) // Keep radius constant for a single user
+            .pointLabel(d => `<div style="background-color: rgba(17, 17, 17, 0.8); color: #FFF; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${d.label}</div>`)
+            .ringsData(aggregatedPoints)
+            .ringColor(() => '#4A69FF')
+            .ringMaxRadius(d => 3 + d.count) // Pulse size is based on activity
+            .ringPropagationSpeed(1)
+            .ringRepeatPeriod(1000);
+            
+        globe.pointOfView({ lat: 27.15, lng: -13.20, altitude: 2 }); 
+        globe.controls().autoRotate = false;
+        globe.controls().autoRotateSpeed = 0;
+        globe.controls().enableZoom = true;
+
+    } catch (error) {
+        console.error("Error creating globe:", error);
+        globeContainer.innerHTML = `<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Error: ${error.message}</p>`;
+    }
+});
+</script>
+
+{% endblock %}

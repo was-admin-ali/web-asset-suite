@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Font Pairings Generator - Website Asset Extractor{% endblock %}
+
+{% block content %}
+<section class="tool-section" style="padding-top: 60px;">
+    <div class="container">
+        <div class="font-pairings-tool-wrapper tool-container"> 
+            <h2>Font Pairings Generator</h2>
+            <p class="tool-subtitle">Discover beautiful font combinations for your next project.</p>
+            
+            <div class="mockup-display-area">
+                <!-- Laptop Mockup -->
+                <div class="mockup-laptop">
+                    <div class="screen">
+                        <div id="font-preview-panel-laptop" class="font-preview-panel">
+                            <!-- START: Corrected Heading Text -->
+                            <h1 id="preview-heading-laptop">Favorite Heading</h1>
+                            <!-- END: Corrected Heading Text -->
+                            <p id="preview-subheading-laptop" class="font-preview-subheading">This is a subheading that provides a little more context.</p>
+                            <p id="preview-body-laptop" class="font-preview-body">This paragraph showcases the main body text. It's designed for maximum readability and should complement the headings.</p>
+                            <button id="font-preview-button-laptop" class="btn">Example Button</button>
+                        </div>
+                    </div>
+                    <div class="base"></div>
+                </div>
+
+                <!-- Phone Mockup -->
+                <div class="mockup-phone">
+                    <div class="screen">
+                       <div id="font-preview-panel-phone" class="font-preview-panel">
+                            <h1 id="preview-heading-phone">Favorite Heading</h1>
+                            <p id="preview-subheading-phone" class="font-preview-subheading">A short, concise subheading.</p>
+                            <p id="preview-body-phone" class="font-preview-body">This paragraph showcases the main body text for smaller screens.</p>
+                            <button id="font-preview-button-phone" class="btn">Example</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="font-pairings-controls">
+                <div class="font-info-panel">
+                    <div class="font-details">
+                        <span class="font-type-label">Heading</span>
+                        <h3 id="heading-font-name">...</h3>
+                        <a id="heading-font-link" href="#" target="_blank" class="btn btn-secondary">Get Font</a>
+                    </div>
+                    <div class="font-details">
+                        <span class="font-type-label">Subheading</span>
+                        <h3 id="subheading-font-name">...</h3>
+                        <a id="subheading-font-link" href="#" target="_blank" class="btn btn-secondary">Get Font</a>
+                    </div>
+                    <div class="font-details">
+                        <span class="font-type-label">Body</span>
+                        <h3 id="body-font-name">...</h3>
+                        <a id="body-font-link" href="#" target="_blank" class="btn btn-secondary">Get Font</a>
+                    </div>
+                </div>
+                <button id="generate-pairing-btn" class="btn btn-primary">Generate New Pairing</button>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

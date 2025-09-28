@@ -1,0 +1,195 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}{% if post %}Edit Post{% else %}Create New Post{% endif %}{% endblock %}
+
+{% block admin_content %}
+<!-- Library styles remain the same -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<form id="post-form" method="POST" action="{{ url_for('save_post') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="post_id" value="{{ post.id if post else '' }}">
+
+    <div class="post-editor-header">
+        <h1>{% if post %}Edit Post{% else %}Create New Post{% endif %}</h1>
+        <div>
+             <a href="{{ url_for('manage_posts') }}" class="btn btn-secondary">Cancel</a>
+             <button type="submit" name="status" value="draft" class="btn btn-secondary">Save Draft</button>
+             <button type="submit" name="status" value="{{ 'scheduled' if post and post.status == 'scheduled' else 'published' }}" class="btn btn-primary">
+                {% if post and post.status == 'scheduled' %}Update Schedule{% else %}Publish{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <div class="post-editor-grid">
+        <div class="post-editor-main-column">
+            <!-- Main content panels (title, editor, SEO) remain the same -->
+            <div class="admin-main-panel">
+                <input type="text" id="title" name="title" required class="auth-input post-title-input" placeholder="Post Title" value="{{ post.title if post else '' }}">
+            </div>
+            <div class="admin-main-panel">
+                <textarea name="content" class="hidden-textarea">{{ post.content | safe if post else '' }}</textarea>
+                <div id="quill-container"></div>
+            </div>
+            <div class="admin-main-panel">
+                 <h3 class="admin-panel-title">SEO Settings</h3>
+                 <div style="margin-bottom: 15px;">
+                    <label for="meta_title">Meta Title</label>
+                    <input type="text" id="meta_title" name="meta_title" class="auth-input" value="{{ post.meta_title if post else '' }}">
+                 </div>
+                 <div>
+                    <label for="meta_description">Meta Description</label>
+                    <textarea id="meta_description" name="meta_description" class="auth-input" rows="3">{{ post.meta_description if post else '' }}</textarea>
+                 </div>
+            </div>
+        </div>
+        <div class="admin-side-panel">
+            <div class="admin-main-panel">
+                <h3 class="admin-panel-title">Post Settings</h3>
+                <div style="margin-bottom: 15px;">
+                    <label for="slug">URL Slug</label>
+                    <input type="text" id="slug" name="slug" class="auth-input" value="{{ post.slug if post else '' }}" readonly>
+                </div>
+                <div>
+                    <label for="pub_date">Publish Date (UTC)</label>
+                    <input type="text" id="pub_date" name="pub_date" class="auth-input" value="{{ post.pub_date.strftime('%Y-%m-%d %H:%M') if post and post.pub_date else '' }}">
+                </div>
+            </div>
+            <div class="admin-main-panel">
+                 <h3 class="admin-panel-title">Category</h3>
+                 
+                 <!-- START: NEW CATEGORY INPUT -->
+                 <input list="category-list" id="category-input" name="category_name" class="auth-input" 
+                        placeholder="Type or select a category"
+                        value="{{ post.category.name if post and post.category else '' }}">
+                 <datalist id="category-list">
+                    {% for cat in categories %}
+                    <option value="{{ cat.name }}">
+                    {% endfor %}
+                 </datalist>
+                 <!-- END: NEW CATEGORY INPUT -->
+
+            </div>
+            <div class="admin-main-panel">
+                 <h3 class="admin-panel-title">Tags</h3>
+                 <input name='tags' class='auth-input' value='{{ tags | safe }}'>
+            </div>
+            <div class="admin-main-panel">
+                <h3 class="admin-panel-title">Featured Image</h3>
+                <input type="file" name="featured_image" class="auth-input">
+                {% if post and post.featured_image %}
+                <img src="{{ url_for('uploaded_file', filename=post.featured_image) }}" class="featured-image-preview">
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- All script tags and JS logic remain the same -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- START: NEW Custom Image Handler for Quill ---
+    function imageHandler() {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = () => {
+            const file = input.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                fetch("{{ url_for('upload_image_for_editor') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': csrfToken }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Upload failed') });
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    const range = this.quill.getSelection(true);
+                    this.quill.insertEmbed(range.index, 'image', result.location);
+                    this.quill.setSelection(range.index + 1);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Image upload failed: ' + error.message);
+                });
+            }
+        };
+    }
+    // --- END: NEW Custom Image Handler for Quill ---
+
+    const quill = new Quill('#quill-container', {
+        theme: 'snow',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ 'font': [] }],
+                    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'color': [] }, { 'background': [] }],
+                    [{ 'script': 'sub'}, { 'script': 'super' }],
+                    ['link', 'image', 'video', 'blockquote', 'code-block'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'indent': '-1'}, { 'indent': '+1' }, { 'align': [] }],
+                    ['clean']
+                ],
+                handlers: {
+                    'image': imageHandler // Link the new handler to the toolbar button
+                }
+            }
+        }
+    });
+    
+    const contentTextarea = document.querySelector('.hidden-textarea');
+    quill.root.innerHTML = contentTextarea.value;
+    
+    const postForm = document.getElementById('post-form');
+    postForm.addEventListener('submit', function(e) {
+        contentTextarea.value = quill.root.innerHTML;
+    });
+
+    // Init Tagify
+    var tagsInput = document.querySelector('input[name=tags]');
+    new Tagify(tagsInput);
+
+    // Init DateTime Picker
+    flatpickr("#pub_date", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true
+    });
+
+    // Auto-generate slug for new posts
+    const titleInput = document.getElementById('title');
+    const slugInput = document.getElementById('slug');
+    if (titleInput && slugInput && !slugInput.value) {
+        titleInput.addEventListener('keyup', function() {
+            const slug = this.value.toString().toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^\w\-]+/g, '')
+                .replace(/\-\-+/g, '-')
+                .replace(/^-+/, '')
+                .replace(/-+$/, '');
+            slugInput.value = slug;
+        });
+    }
+});
+</script>
+{% endblock %}

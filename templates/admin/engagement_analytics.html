@@ -1,0 +1,103 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Engagement & Behavior{% endblock %}
+
+{% block admin_content %}
+<h1>Engagement & Behavior</h1>
+<p class="tool-subtitle" style="margin-bottom: 30px;">Analyze how users interact with your tools and features.</p>
+
+<!-- Top Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Avg. Session Duration</h3>
+        <span class="stat-number">{{ ga_data.avg_session_duration if ga_data else 'N/A' }}</span>
+        <h3 style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">(from GA, 30 days)</h3>
+    </div>
+</div>
+
+<div class="admin-section-grid" style="grid-template-columns: 1.5fr 1fr; align-items: flex-start; margin-top: 30px;">
+    <!-- Left Side: Heatmap and Placeholders -->
+    <div class="admin-main-panel">
+        <h2 class="admin-panel-title">Feature Usage Heatmap</h2>
+        <p class="tool-subtitle" style="margin-top: -15px; margin-bottom: 20px;">Most used tools across all users.</p>
+        <div class="heatmap-container" style="display: flex; flex-direction: column; gap: 10px;">
+            {% set max_usage = (tool_usage_counts.values()|max) if tool_usage_counts else 0 %}
+            {% for tool, count in tool_usage_counts.items() %}
+                {% set percentage = (count / max_usage * 100) if max_usage > 0 else 0 %}
+                <div class="heatmap-item" style="display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-primary); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="font-weight: 600; text-transform: capitalize;">{{ tool }}</div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="font-weight: 700; font-size: 1.1rem;">{{ "{:,}".format(count) }} uses</div>
+                        <div class="heatmap-bar-wrapper" style="width: 150px; height: 12px; background-color: var(--border-color); border-radius: 6px; overflow: hidden;">
+                            <div class="heatmap-bar" style="--progress: {{ percentage }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <p style="color: var(--text-secondary);">No tool usage has been recorded yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- User Journeys Placeholder -->
+        <div class="admin-main-panel" style="padding: 25px; margin-top: 30px;">
+             <h2 class="admin-panel-title">User Journeys & Popular Tool Combinations</h2>
+             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+                Tracking user paths (e.g., Extractor → Compressor → Exit) and popular feature combinations requires a dedicated event-based analytics setup.
+                <br><br>
+                For deep insights, consider integrating with a product analytics tool like Mixpanel or Amplitude, or setting up custom Path Exploration reports in Google Analytics 4. This feature is on our future development roadmap.
+             </p>
+        </div>
+    </div>
+
+    <!-- Right Side: Retention Cohorts -->
+    <div class="admin-side-panel" style="margin-top: 0;">
+        <div class="admin-table-wrapper">
+            <h2 class="admin-panel-title" style="padding: 20px; margin: 0; border-bottom: 1px solid var(--border-color);">Retention Cohorts</h2>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Cohort Period</th>
+                        <th style="text-align: right;">Retention Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>7-Day Retention</td>
+                        <td style="text-align: right; font-weight: 700;">
+                            {% if retention_data['7_day'] is not none %}
+                                {{ "%.1f"|format(retention_data['7_day']) }}%
+                            {% else %}
+                                <span style="color: var(--text-secondary);">Not Enough Data</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>30-Day Retention</td>
+                        <td style="text-align: right; font-weight: 700;">
+                            {% if retention_data['30_day'] is not none %}
+                                {{ "%.1f"|format(retention_data['30_day']) }}%
+                            {% else %}
+                                <span style="color: var(--text-secondary);">Not Enough Data</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>90-Day Retention</td>
+                        <td style="text-align: right; font-weight: 700;">
+                            {% if retention_data['90_day'] is not none %}
+                                {{ "%.1f"|format(retention_data['90_day']) }}%
+                            {% else %}
+                                <span style="color: var(--text-secondary);">Not Enough Data</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+             <p style="color: var(--text-secondary); font-size: 0.8rem; padding: 15px;">
+                Retention is calculated based on users who signed up in the preceding period and were active in the current period. (e.g., 7-day retention tracks users who signed up 8-14 days ago and returned in the last 7 days).
+             </p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

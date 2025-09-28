@@ -1,0 +1,108 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_title %}Creative Insights{% endblock %}
+
+{% block admin_content %}
+<h1>Creative-Specific Insights</h1>
+<p class="tool-subtitle" style="margin-bottom: 30px;">Discover trends in how creative assets are being used.</p>
+
+<!-- Top Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Avg. Compression Ratio</h3>
+        <span class="stat-number" style="color: var(--accent-secondary);">{{ "%.1f"|format(avg_compression_ratio) }}%</span>
+        <h3 style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 5px;">Total storage saved for users.</h3>
+    </div>
+</div>
+
+<div class="admin-section-grid" style="grid-template-columns: 1fr 1fr; align-items: flex-start; margin-top: 30px;">
+    <!-- Left Side: File Types -->
+    <div class="admin-main-panel">
+        <h2 class="admin-panel-title">File Types Compressed</h2>
+        <div class="chart-container" style="height: 400px;">
+            <canvas id="file-types-chart" data-filetypes="{{ file_type_counts | tojson | e }}"></canvas>
+        </div>
+    </div>
+    
+    <!-- Right Side: Placeholders -->
+    <div class="admin-side-panel" style="margin-top: 0;">
+        <div class="admin-main-panel" style="padding: 25px;">
+            <h2 class="admin-panel-title">Most Common Font Pairings</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+                This feature is on the roadmap! To track the most popular font combinations, we will add a mechanism to the Font Pairings tool to log generated pairs to the database for analysis.
+            </p>
+        </div>
+        <div class="admin-main-panel" style="padding: 25px;">
+            <h2 class="admin-panel-title">Color Palette Trends</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+                Coming soon! This will involve logging extracted color palettes and performing analysis to identify recurring colors and trending combinations over time.
+            </p>
+        </div>
+        <div class="admin-main-panel" style="padding: 25px;">
+            <h2 class="admin-panel-title">Success Spotlight</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;">
+               This section will highlight power users who show high engagement or showcase interesting workflows. It requires more detailed user activity tracking to identify these patterns.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const fileTypesCanvas = document.getElementById('file-types-chart');
+    if (fileTypesCanvas) {
+        try {
+            const fileTypeData = JSON.parse(fileTypesCanvas.dataset.filetypes);
+            const labels = Object.keys(fileTypeData);
+            const data = Object.values(fileTypeData);
+
+            if (labels.length > 0) {
+                 new Chart(fileTypesCanvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Number of Compressions',
+                            data: data,
+                            backgroundColor: 'rgba(74, 105, 255, 0.6)',
+                            borderColor: 'rgba(74, 105, 255, 1)',
+                            borderWidth: 2,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y', // Make it a horizontal bar chart
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: { color: 'var(--text-secondary)', precision: 0 },
+                                grid: { color: 'var(--border-color)' }
+                            },
+                            y: {
+                                ticks: { color: 'var(--text-secondary)' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            } else {
+                fileTypesCanvas.parentElement.innerHTML = '<p style="color: var(--text-secondary); text-align:center; padding: 20px;">No compression data available to display.</p>';
+            }
+        } catch(e) {
+            console.error("Error parsing file type data:", e);
+            fileTypesCanvas.parentElement.innerHTML = '<p style="color: var(--text-secondary);">Could not load chart data.</p>';
+        }
+    }
+});
+</script>
+{% endblock %}

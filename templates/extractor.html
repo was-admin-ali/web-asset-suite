@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Website Asset Extractor{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="tool-section" style="padding-top: 60px;">
+        <div class="tool-container">
+            <h2>Website Asset Extractor</h2>
+            <p class="tool-subtitle">Enter a URL below to pull images, colors, and fonts.</p>
+            <div class="extract-options">
+                <div class="option-item">
+                    <input type="checkbox" id="extract-images" name="extract-images" checked>
+                    <label for="extract-images">Images & Logos</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="extract-colors" name="extract-colors" checked>
+                    <label for="extract-colors">Color Palette</label>
+                </div>
+                <div class="option-item">
+                    <input type="checkbox" id="extract-fonts" name="extract-fonts" checked>
+                    <label for="extract-fonts">Fonts</label>
+                </div>
+            </div>
+            <form id="extract-form">
+                <input type="text" id="url-input" placeholder="https://example.com" required>
+                <button type="submit">Extract Assets</button>
+            </form>
+        </div>
+    </section>
+
+    <div id="loader" class="hidden"></div>
+    <div id="error-message" class="hidden"></div>
+
+    <div id="results-container" class="hidden">
+        <section class="results-box" id="images-section">
+            <h2>Images & Logos</h2>
+            <div id="images-grid"></div>
+        </section>
+        <section class="results-box" id="colors-section">
+            <h2>Color Palette</h2>
+            <div id="colors-container"></div>
+        </section>
+        <section class="results-box" id="fonts-section">
+            <h2>Fonts Used</h2>
+            <ul id="fonts-list"></ul>
+        </section>
+    </div>
+</div>
+{% endblock %}

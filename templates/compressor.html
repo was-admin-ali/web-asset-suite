@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Image Compressor - Website Asset Extractor{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="tool-section" style="padding-top: 60px;">
+        <div class="tool-container compressor-container">
+            <h2>Image Compressor</h2>
+            <p class="tool-subtitle">Reduce the file size of your JPG and PNG images</p>
+            
+            <form id="compress-form">
+                <div class="file-upload-area" id="file-upload-area">
+                    <input type="file" id="image-input" accept="image/jpeg, image/png" required>
+                    <div id="file-upload-prompt">
+                        <svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                        <p><strong>Click to upload</strong> or drag and drop</p>
+                        <span class="file-type-info">PNG or JPG (Max 10MB)</span>
+                    </div>
+                </div>
+                <div class="quality-slider-container" id="quality-container">
+                    <label for="quality-slider">Compression Quality:</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="quality-slider" min="10" max="100" value="99">
+                        <span id="quality-value">99%</span>
+                    </div>
+                </div>
+                <button type="submit" id="compress-btn" class="btn btn-primary">Compress Image</button>
+            </form>
+        </div>
+
+        <div id="compress-loader" class="hidden"></div>
+        <div id="compress-error" class="hidden"></div>
+
+        <div id="compress-results" class="results-box hidden">
+            <h2>Compression Results</h2>
+            <div class="results-summary">
+                <div class="size-info">
+                    <strong>Original Size:</strong>
+                    <span id="original-size"></span>
+                </div>
+                <div class="size-info">
+                    <strong>Compressed Size:</strong>
+                    <span id="compressed-size"></span>
+                </div>
+                <div class="size-info reduction">
+                    <strong>Reduction:</strong>
+                    <span id="reduction-percent"></span>
+                    <strong id="compression-status-message" style="font-size: 0.9rem; margin-top: 5px; color: var(--text-secondary);"></strong>
+                </div>
+            </div>
+            <div class="image-previews">
+                <div class="preview-box">
+                    <h3>Original</h3>
+                    <img id="original-preview" src="#" alt="Original Image Preview">
+                </div>
+                <div class="preview-box">
+                    <h3>Compressed</h3>
+                    <img id="compressed-preview" src="#" alt="Compressed Image Preview">
+                </div>
+            </div>
+            <a href="#" id="download-btn" class="btn btn-primary" download>Download Compressed Image</a>
+        </div>
+    </section>
+</div>
+{% endblock %}
