@@ -34,6 +34,8 @@ import click
 from sqlalchemy import func, and_, or_
 from werkzeug.exceptions import RequestEntityTooLarge
 
+import logging
+
 # --- START: SECURITY FIX ---
 import bleach
 from bleach.css_sanitizer import CSSSanitizer
@@ -62,6 +64,10 @@ load_dotenv()
 # Initialize the Flask app, making it aware of the 'instance' folder
 app = Flask(__name__, instance_relative_config=True)
 csrf = CSRFProtect(app)
+
+# --- START: NEW LOGGING CONFIGURATION ---
+logging.basicConfig(level=logging.INFO)
+# --- END: NEW LOGGING CONFIGURATION ---
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
@@ -112,7 +118,7 @@ oauth.register(
 # --- SENDGRID CONFIGURATION ---
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
 # IMPORTANT: This email must be a "Verified Sender" in your SendGrid account.
-app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'aliazoukenni08@gmail.com')
+app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'noreply@webassetsuite.com')
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 db = SQLAlchemy(app)
@@ -214,7 +220,7 @@ class Subscriber(db.Model):
 def send_email(to, subject, template):
     """Sends an email using the SendGrid API."""
     if not app.config.get('SENDGRID_API_KEY'):
-        print("SENDGRID_API_KEY not set. Email sending is disabled.")
+        app.logger.error("CRITICAL: SENDGRID_API_KEY not set. Email sending is disabled.")
         return
 
     message = Mail(
@@ -226,9 +232,9 @@ def send_email(to, subject, template):
     try:
         sendgrid_client = SendGridAPIClient(app.config['SENDGRID_API_KEY'])
         response = sendgrid_client.send(message)
-        print(f"Email sent to {to}. Status Code: {response.status_code}")
+        app.logger.info(f"Email sent to {to}. Status Code: {response.status_code}")
     except Exception as e:
-        print(f"Error sending email via SendGrid: {e}")
+        app.logger.error(f"Error sending email via SendGrid: {e}")
 
 
 # --- START: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
@@ -816,7 +822,7 @@ def logout():
     return redirect(url_for('home'))
 @app.route('/login/google')
 def google_login():
-    redirect_uri = url_for('google_auth_callback', _external=True)
+    redirect_uri = "https://webassetsuite.com/login/google/callback"
     return oauth.google.authorize_redirect(redirect_uri)
 @app.route('/login/google/callback')
 def google_auth_callback():
