@@ -34,6 +34,8 @@ import click
 from sqlalchemy import func, and_, or_
 from werkzeug.exceptions import RequestEntityTooLarge
 
+import logging
+
 # --- START: SECURITY FIX ---
 import bleach
 from bleach.css_sanitizer import CSSSanitizer
@@ -62,6 +64,10 @@ load_dotenv()
 # Initialize the Flask app, making it aware of the 'instance' folder
 app = Flask(__name__, instance_relative_config=True)
 csrf = CSRFProtect(app)
+
+# --- START: NEW LOGGING CONFIGURATION ---
+logging.basicConfig(level=logging.INFO)
+# --- END: NEW LOGGING CONFIGURATION ---
 
 # --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
@@ -112,7 +118,7 @@ oauth.register(
 # --- SENDGRID CONFIGURATION ---
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
 # IMPORTANT: This email must be a "Verified Sender" in your SendGrid account.
-app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'aliazoukenni08@gmail.com')
+app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'noreply@webassetsuite.com')
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 db = SQLAlchemy(app)
@@ -212,10 +218,19 @@ class Subscriber(db.Model):
 # --- HELPER FUNCTIONS (UPDATED) ---
 
 def send_email(to, subject, template):
-    """Sends an email using the SendGrid API."""
-    if not app.config.get('SENDGRID_API_KEY'):
-        print("SENDGRID_API_KEY not set. Email sending is disabled.")
+    """Sends an email using the SendGrid API with improved error logging."""
+    api_key = app.config.get('SENDGRID_API_KEY')
+    sender_email = app.config.get('MAIL_DEFAULT_SENDER')
+
+    # --- START: NEW DIAGNOSTIC LOGGING ---
+    if api_key:
+        masked_key = f"{api_key[:5]}...{api_key[-4:]}" # Masks the middle of the key for security
+        app.logger.info(f"Attempting to send email using API Key: {masked_key}")
+    else:
+        app.logger.error("CRITICAL: SENDGRID_API_KEY not set in config. Email sending is disabled.")
         return
+    
+    app.logger.info(f"Email configuration - From: {sender_email}, To: {to}, Subject: {subject}")
 
     message = Mail(
         from_email=app.config['MAIL_DEFAULT_SENDER'],
@@ -226,9 +241,20 @@ def send_email(to, subject, template):
     try:
         sendgrid_client = SendGridAPIClient(app.config['SENDGRID_API_KEY'])
         response = sendgrid_client.send(message)
-        print(f"Email sent to {to}. Status Code: {response.status_code}")
+        
+        # Add more robust logging based on SendGrid's response
+        if 200 <= response.status_code < 300:
+            app.logger.info(f"Email successfully sent to {to}. Status Code: {response.status_code}")
+        else:
+            app.logger.error(f"Failed to send email to {to}. SendGrid returned status code: {response.status_code}")
+            app.logger.error(f"SendGrid response body: {response.body}")
+            # The response body will contain the exact error message from SendGrid,
+            # such as issues with a non-verified sender email.
+            
     except Exception as e:
-        print(f"Error sending email via SendGrid: {e}")
+        # This will catch network errors or problems with the sendgrid library itself.
+        app.logger.error(f"An exception occurred while trying to send email via SendGrid: {e}")
+        app.logger.error(traceback.format_exc())
 
 
 # --- START: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
@@ -772,7 +798,8 @@ def register():
             return redirect(url_for('login'))
         except Exception as e:
             db.session.rollback()
-            print(f"Database error during registration: {e}")
+            app.logger.error(f"An error occurred during user registration for email {email}: {e}")
+            app.logger.error(traceback.format_exc())
             flash('Could not create account due to a server issue. Please try again later.', 'error')
             return redirect(url_for('register'))
     return render_template('register.html')
@@ -816,7 +843,7 @@ def logout():
     return redirect(url_for('home'))
 @app.route('/login/google')
 def google_login():
-    redirect_uri = url_for('google_auth_callback', _external=True)
+    redirect_uri = "https://webassetsuite.com/login/google/callback"
     return oauth.google.authorize_redirect(redirect_uri)
 @app.route('/login/google/callback')
 def google_auth_callback():
