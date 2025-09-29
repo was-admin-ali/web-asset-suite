@@ -241,6 +241,7 @@ def send_email(to, subject, template):
     try:
         sendgrid_client = SendGridAPIClient(app.config['SENDGRID_API_KEY'])
         response = sendgrid_client.send(message)
+<<<<<<< HEAD
         
         # Add more robust logging based on SendGrid's response
         if 200 <= response.status_code < 300:
@@ -255,6 +256,11 @@ def send_email(to, subject, template):
         # This will catch network errors or problems with the sendgrid library itself.
         app.logger.error(f"An exception occurred while trying to send email via SendGrid: {e}")
         app.logger.error(traceback.format_exc())
+=======
+        app.logger.info(f"Email sent to {to}. Status Code: {response.status_code}")
+    except Exception as e:
+        app.logger.error(f"Error sending email via SendGrid: {e}")
+>>>>>>> 9c4ffec4ce5c5d82379dbc5a6c75ed6506d963e3
 
 
 # --- START: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
