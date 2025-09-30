@@ -57,7 +57,7 @@ from flask_wtf.csrf import CSRFProtect
 
 # --- NEW: SendGrid Imports ---
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import Mail, From # <-- FINAL FIX: Import the 'From' helper
 
 load_dotenv()
 
@@ -90,9 +90,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 @app.errorhandler(413)
 @app.errorhandler(RequestEntityTooLarge)
 def handle_request_entity_too_large(e):
-    # This handler will catch the error before it hits the route
     flash('The submitted data or file is too large. Please reduce the size of images embedded in the post content.', 'error')
-    # Try to redirect back to the editor, checking for post_id in the form
     post_id = request.form.get('post_id')
     if post_id:
         return redirect(url_for('post_editor', post_id=post_id))
@@ -110,14 +108,11 @@ oauth.register(
     client_id=app.config["GOOGLE_CLIENT_ID"],
     client_secret=app.config["GOOGLE_CLIENT_SECRET"],
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={
-        'scope': 'openid email profile'
-    }
+    client_kwargs={'scope': 'openid email profile'}
 )
 
 # --- SENDGRID CONFIGURATION ---
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
-# IMPORTANT: This email must be a "Verified Sender" in your SendGrid account.
 app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'noreply@webassetsuite.com')
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
@@ -131,9 +126,7 @@ MAX_IMAGE_DIMENSIONS: Tuple[int, int] = (8000, 8000)
 MAX_ANON_USES = 3
 
 
-# --- DATABASE MODELS (HEAVILY UPDATED) ---
-
-# Association table for Posts and Tags
+# --- DATABASE MODELS ---
 post_tags = db.Table('post_tags',
     db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
@@ -171,16 +164,13 @@ class Post(db.Model):
     slug = db.Column(db.String(200), unique=True, nullable=False)
     content = db.Column(db.Text, nullable=False)
     pub_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    
-    # New fields
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
     featured_image = db.Column(db.String(255), nullable=True)
-    status = db.Column(db.String(20), nullable=False, default='draft') # draft, published, scheduled
+    status = db.Column(db.String(20), nullable=False, default='draft')
     views = db.Column(db.Integer, default=0)
     meta_title = db.Column(db.String(200), nullable=True)
     meta_description = db.Column(db.String(300), nullable=True)
-    
     tags = db.relationship('Tag', secondary=post_tags, lazy='subquery',
                            backref=db.backref('posts', lazy=True))
 
@@ -215,24 +205,25 @@ class Subscriber(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     subscribed_on = db.Column(db.DateTime, default=datetime.utcnow)
 
-# --- HELPER FUNCTIONS (UPDATED) ---
+
+# --- HELPER FUNCTIONS ---
 
 def send_email(to, subject, template):
-    """Sends an email using the SendGrid API with improved error logging."""
+    """Sends an email using the SendGrid API with explicit From object."""
     api_key = app.config.get('SENDGRID_API_KEY')
-    sender_email = app.config.get('MAIL_DEFAULT_SENDER')
+    sender_tuple = app.config.get('MAIL_DEFAULT_SENDER')
 
     if not api_key:
         app.logger.error("CRITICAL: SENDGRID_API_KEY not set in config. Email sending is disabled.")
         return
 
-    # Diagnostic logging
-    masked_key = f"{api_key[:5]}...{api_key[-4:]}"
-    app.logger.info(f"Attempting to send email using API Key: {masked_key}")
-    app.logger.info(f"Email configuration - From: {sender_email}, To: {to}, Subject: {subject}")
+    # --- FINAL FIX: Create an explicit 'From' object ---
+    from_object = From(email=sender_tuple[1], name=sender_tuple[0])
+    
+    app.logger.info(f"Email configuration - From: {from_object.get()}, To: {to}, Subject: {subject}")
 
     message = Mail(
-        from_email=sender_email,
+        from_email=from_object, # Use the explicit object here
         to_emails=to,
         subject=subject,
         html_content=template
@@ -254,42 +245,30 @@ def send_email(to, subject, template):
         app.logger.error(f"DETAILED SENDGRID ERROR: {error_body}")
 
 
-# --- START: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
 def sanitize_html(html_content):
-    """Cleans user-submitted HTML to prevent XSS attacks."""
     if not html_content:
         return ""
-        
     allowed_tags = [
         'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li', 'blockquote',
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'code', 'img', 'span', 'div'
     ]
-    
-    # --- FIX: Correctly add 'data' to the list of allowed protocols ---
     allowed_protocols = list(bleach.ALLOWED_PROTOCOLS) + ['data']
-
     allowed_attributes = {
-        '*': ['class', 'style'],
-        'a': ['href', 'title', 'target'],
+        '*': ['class', 'style'], 'a': ['href', 'title', 'target'],
         'img': ['src', 'alt', 'width', 'height'],
     }
-    
     allowed_css_properties = [
         'color', 'background-color', 'font-family', 'font-size', 'font-weight', 'text-align',
         'float', 'margin', 'margin-left', 'margin-right', 'padding', 'padding-left', 'padding-right', 
         'width', 'height', 'border', 'text-decoration', 'list-style-type'
     ]
     css_sanitizer = CSSSanitizer(allowed_css_properties=allowed_css_properties)
-    
     cleaned_html = bleach.clean(
-        html_content,
-        tags=allowed_tags,
-        attributes=allowed_attributes,
-        protocols=allowed_protocols,
-        css_sanitizer=css_sanitizer,
-        strip=True
+        html_content, tags=allowed_tags, attributes=allowed_attributes,
+        protocols=allowed_protocols, css_sanitizer=css_sanitizer, strip=True
     )
     return cleaned_html
+    
 # --- END: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
 
 
