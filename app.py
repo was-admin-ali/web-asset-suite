@@ -222,45 +222,36 @@ def send_email(to, subject, template):
     api_key = app.config.get('SENDGRID_API_KEY')
     sender_email = app.config.get('MAIL_DEFAULT_SENDER')
 
-    # --- START: NEW DIAGNOSTIC LOGGING ---
-    if api_key:
-        masked_key = f"{api_key[:5]}...{api_key[-4:]}" # Masks the middle of the key for security
-        app.logger.info(f"Attempting to send email using API Key: {masked_key}")
-    else:
+    if not api_key:
         app.logger.error("CRITICAL: SENDGRID_API_KEY not set in config. Email sending is disabled.")
         return
-    
+
+    # Diagnostic logging
+    masked_key = f"{api_key[:5]}...{api_key[-4:]}"
+    app.logger.info(f"Attempting to send email using API Key: {masked_key}")
     app.logger.info(f"Email configuration - From: {sender_email}, To: {to}, Subject: {subject}")
 
     message = Mail(
-        from_email=app.config['MAIL_DEFAULT_SENDER'],
+        from_email=sender_email,
         to_emails=to,
         subject=subject,
         html_content=template
     )
+    
     try:
-        sendgrid_client = SendGridAPIClient(app.config['SENDGRID_API_KEY'])
+        sendgrid_client = SendGridAPIClient(api_key)
         response = sendgrid_client.send(message)
-<<<<<<< HEAD
         
-        # Add more robust logging based on SendGrid's response
         if 200 <= response.status_code < 300:
             app.logger.info(f"Email successfully sent to {to}. Status Code: {response.status_code}")
         else:
             app.logger.error(f"Failed to send email to {to}. SendGrid returned status code: {response.status_code}")
-            app.logger.error(f"SendGrid response body: {response.body}")
-            # The response body will contain the exact error message from SendGrid,
-            # such as issues with a non-verified sender email.
+            app.logger.error(f"SendGrid response body: {response.body.decode('utf-8') if response.body else 'No body'}")
             
     except Exception as e:
-        # This will catch network errors or problems with the sendgrid library itself.
-        app.logger.error(f"An exception occurred while trying to send email via SendGrid: {e}")
-        app.logger.error(traceback.format_exc())
-=======
-        app.logger.info(f"Email sent to {to}. Status Code: {response.status_code}")
-    except Exception as e:
-        app.logger.error(f"Error sending email via SendGrid: {e}")
->>>>>>> 9c4ffec4ce5c5d82379dbc5a6c75ed6506d963e3
+        error_body = e.body if hasattr(e, 'body') else str(e)
+        app.logger.error(f"An exception occurred while trying to send email via SendGrid.")
+        app.logger.error(f"DETAILED SENDGRID ERROR: {error_body}")
 
 
 # --- START: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
@@ -425,9 +416,7 @@ def before_request_callback():
         db.session.commit()
 
 # --- Google Analytics Helper Function ---
-# (This function is unchanged, so it is omitted for brevity)
 def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
-    # ... (function content remains the same)
     if not property_id or not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
         print("GA_PROPERTY_ID or GOOGLE_APPLICATION_CREDENTIALS not set. Skipping GA fetch.")
         return None
@@ -497,14 +486,13 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
 
 
 # --- FONT CLASSIFICATION & SELENIUM MANAGEMENT ---
-# (These functions are unchanged and omitted for brevity)
 GOOGLE_FONTS_API_CACHE: Optional[Dict[str, str]] = None
 MYFONTS_KNOWN_LIST: Set[str] = {'circular std', 'gt walsheim pro', 'avenir next', 'futura pt', 'neue haas unica', 'aktiv grotesk', 'brandon grotesque', 'gilroy', 'gotham', 'helvetica now', 'din next'}
 ICON_FONT_TERMS: Set[str] = {'icon', 'awesome', 'glyph', 'yootheme', 'eicons'}
 SYSTEM_FONTS: Set[str] = {'arial', 'helvetica neue', 'helvetica', 'times new roman', 'georgia', 'verdana', 'tahoma', '-apple-system', 'segoe ui'}
 SYSTEM_FONTS_CANONICAL = {re.sub(r'[\s_-]', '', s.lower()) for s in SYSTEM_FONTS}
 driver: Optional[webdriver.Chrome] = None
-# ... (all helper functions from load_google_fonts_from_api to extract_assets_from_page remain the same)
+
 def load_google_fonts_from_api() -> Dict[str, str]:
     global GOOGLE_FONTS_API_CACHE
     if GOOGLE_FONTS_API_CACHE is not None: return GOOGLE_FONTS_API_CACHE
