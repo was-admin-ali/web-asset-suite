@@ -61,6 +61,12 @@ from sendgrid.helpers.mail import Mail, From # <-- FINAL FIX: Import the 'From' 
 
 load_dotenv()
 
+# --- START: NEW - Set WebDriver Manager Cache Path ---
+# This directs webdriver-manager to save its cache inside our project folder,
+# which is necessary because our 'mahfoud' user has no home directory.
+os.environ['WDM_LOCAL'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.wdm_cache')
+# --- END: NEW - Set WebDriver Manager Cache Path ---
+
 # Initialize the Flask app, making it aware of the 'instance' folder
 app = Flask(__name__, instance_relative_config=True)
 csrf = CSRFProtect(app)
