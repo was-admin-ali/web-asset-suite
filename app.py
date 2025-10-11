@@ -61,12 +61,6 @@ from sendgrid.helpers.mail import Mail, From # <-- FINAL FIX: Import the 'From' 
 
 load_dotenv()
 
-# --- START: NEW - Set WebDriver Manager Cache Path ---
-# This directs webdriver-manager to save its cache inside our project folder,
-# which is necessary because our 'mahfoud' user has no home directory.
-os.environ['WDM_LOCAL'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.wdm_cache')
-# --- END: NEW - Set WebDriver Manager Cache Path ---
-
 # Initialize the Flask app, making it aware of the 'instance' folder
 app = Flask(__name__, instance_relative_config=True)
 csrf = CSRFProtect(app)
@@ -506,15 +500,20 @@ def init_driver() -> webdriver.Chrome:
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-setuid-sandbox") # ADD THIS LINE
-    chrome_options.add_argument("--remote-debugging-port=9222") # ADD THIS LINE
+    chrome_options.add_argument("--disable-setuid-sandbox")
+    chrome_options.add_argument("--remote-debugging-port=9222")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-    service = ChromeService(ChromeDriverManager().install())
+
+    # --- START: NEW EXPLICIT PATH ---
+    # We no longer use ChromeDriverManager. We point directly to the pre-installed driver.
+    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
+    # --- END: NEW EXPLICIT PATH ---
+
     driver = webdriver.Chrome(service=service, options=chrome_options)
     stealth(driver, languages=["en-US", "en"], vendor="Google Inc.", platform="Win32", webgl_vendor="Intel Inc.", renderer="Intel Iris OpenGL Engine", fix_hairline=True)
     print("Browser Initialized.")
