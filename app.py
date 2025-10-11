@@ -496,26 +496,29 @@ def load_google_fonts_from_api() -> Dict[str, str]:
         return {}
 def init_driver() -> webdriver.Chrome:
     global driver
-    print("Initializing Browser...")
+    print("Initializing Browser with Selenium Stealth...")
+    
+    # Selenium Stealth handles the driver and browser setup automatically.
+    # This is more reliable on servers than manual setup.
+    
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-setuid-sandbox")
-    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-
-    # --- START: NEW EXPLICIT PATH ---
-    # We no longer use ChromeDriverManager. We point directly to the pre-installed driver.
-    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
-    # --- END: NEW EXPLICIT PATH ---
-
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    stealth(driver, languages=["en-US", "en"], vendor="Google Inc.", platform="Win32", webgl_vendor="Intel Inc.", renderer="Intel Iris OpenGL Engine", fix_hairline=True)
+    
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    stealth(driver,
+            languages=["en-US", "en"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True,
+            )
+    
     print("Browser Initialized.")
     load_google_fonts_from_api()
     return driver
