@@ -654,17 +654,23 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
     print(f"Analyzing page: {url}")
     
     chrome_options = Options()
+    # --- START: FINAL EXPLICIT PATHS ---
+    # Manually specify the location of the Chrome browser itself.
+    chrome_options.binary_location = "/usr/bin/google-chrome"
+    # Manually specify the location of the driver that controls the browser.
+    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
+    # --- END: FINAL EXPLICIT PATHS ---
+    
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-    
-    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
-    
+
     driver = None
     try:
+        # Initialize the driver with both manual paths specified.
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
         driver.get(url)
