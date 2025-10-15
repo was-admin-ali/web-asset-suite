@@ -1,6 +1,5 @@
 # NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid
 import requests
-import tempfile
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -654,7 +653,6 @@ def get_clustered_color_palette(color_data: Dict[str, float], threshold: float =
 def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
     print(f"Analyzing page: {url}")
     
-    # --- START: NEW SELF-CONTAINED DRIVER SETUP ---
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -662,23 +660,19 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
     
-    # Create a unique, temporary user data directory for each instance.
-    user_data_dir = tempfile.mkdtemp()
-    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-    
-    driver = webdriver.Chrome(options=chrome_options)
-    
-    stealth(driver,
-            languages=["en-US", "en"],
-            vendor="Google Inc.",
-            platform="Win32",
-            webgl_vendor="Intel Inc.",
-            renderer="Intel Iris OpenGL Engine",
-            fix_hairline=True,
-            )
-    # --- END: NEW SELF-CONTAINED DRIVER SETUP ---
-
+    driver = None  # Initialize driver to None
     try:
+        driver = webdriver.Chrome(options=chrome_options)
+        
+        stealth(driver,
+                languages=["en-US", "en"],
+                vendor="Google Inc.",
+                platform="Win32",
+                webgl_vendor="Intel Inc.",
+                renderer="Intel Iris OpenGL Engine",
+                fix_hairline=True,
+                )
+        
         driver.get(url)
         try:
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
@@ -713,13 +707,9 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
         return images, fonts, colors
 
     finally:
-        # --- START: CRITICAL FINAL STEP ---
-        # Ensure the browser is always closed and the temporary directory is cleaned up.
-        print("Closing browser and cleaning up...")
-        driver.quit()
-        import shutil
-        shutil.rmtree(user_data_dir, ignore_errors=True)
-        # --- END: CRITICAL FINAL STEP ---
+        if driver:
+            print("Closing browser...")
+            driver.quit()
     
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
 def track_usage(tool_name: str, metadata: Optional[Dict] = None):
@@ -968,36 +958,40 @@ def get_google_fonts():
 @app.route('/extract', methods=['POST'])
 @csrf.exempt
 def handle_extraction_request() -> FlaskResponse:
-    # MODIFIED: Usage limit check
     if not check_and_increment_usage():
         return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
         
     options = request.get_json()
-    if not options or not (url := options.get('url')): return jsonify({'error': 'URL is required'}), 400
+    if not options or not (url := options.get('url')):
+        return jsonify({'error': 'URL is required'}), 400
+    
     url = 'https://' + url if not url.startswith(('http://', 'https://')) else url
+    
     try:
         images, fonts, colors = extract_assets_from_page(url, options)
+        
         final_response: Dict[str, Any] = {}
         assets_found = False
+        
         if options.get('extract_images') and (image_list := sorted(list(images))):
-            final_response['images'] = image_list; assets_found = True
+            final_response['images'] = image_list
+            assets_found = True
         if options.get('extract_fonts') and (font_list := sorted(fonts, key=lambda x: x.get('displayName', ''))):
-            final_response['fonts'] = font_list; assets_found = True
+            final_response['fonts'] = font_list
+            assets_found = True
         if options.get('extract_colors') and (color_palette := get_clustered_color_palette(colors)):
-            final_response['colors'] = color_palette; assets_found = True
+            final_response['colors'] = color_palette
+            assets_found = True
+
         if any(options.get(k) for k in ['extract_images', 'extract_fonts', 'extract_colors']) and not assets_found:
             return jsonify({'error': 'Could not extract any assets. The site may be protected or empty.'}), 500
         
         track_usage('extractor', metadata={'url': url})
         print(f"Scan Complete. Found {len(final_response.get('images', []))} images, {len(final_response.get('fonts', []))} fonts.")
         return jsonify(final_response)
+    
     except Exception as e:
         traceback.print_exc()
-        global driver
-        if driver:
-            try: driver.quit()
-            except WebDriverException: pass
-        driver = None 
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
