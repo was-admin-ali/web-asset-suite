@@ -21,7 +21,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium_stealth import stealth
 import webcolors
 from PIL import Image, UnidentifiedImageError
 import io
@@ -659,19 +658,16 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 1.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+    
+    # This points directly to the driver we installed on the server.
+    # No managers, no stealth, no magic.
+    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
     
     driver = None  # Initialize driver to None
     try:
-        driver = webdriver.Chrome(options=chrome_options)
-        
-        stealth(driver,
-                languages=["en-US", "en"],
-                vendor="Google Inc.",
-                platform="Win32",
-                webgl_vendor="Intel Inc.",
-                renderer="Intel Iris OpenGL Engine",
-                fix_hairline=True,
-                )
+        # This is now the most direct and reliable way to start Chrome.
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         
         driver.get(url)
         try:
