@@ -32,6 +32,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import click
 import shutil
+import tempfile
 from sqlalchemy import func, and_, or_
 from werkzeug.exceptions import RequestEntityTooLarge
 
