@@ -653,13 +653,15 @@ def get_clustered_color_palette(color_data: Dict[str, float], threshold: float =
 def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
     print(f"Analyzing page: {url}")
     
+    # --- START: FIX ---
+    # Create a unique temporary directory for this specific browser session.
+    # This prevents conflicts when multiple users run the tool at the same time.
+    temp_dir = tempfile.TemporaryDirectory()
+    # --- END: FIX ---
+
     chrome_options = Options()
-    # --- START: FINAL EXPLICIT PATHS ---
-    # Manually specify the location of the Chrome browser itself.
     chrome_options.binary_location = "/usr/bin/google-chrome"
-    # Manually specify the location of the driver that controls the browser.
     service = ChromeService(executable_path='/usr/local/bin/chromedriver')
-    # --- END: FINAL EXPLICIT PATHS ---
     
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -667,10 +669,14 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+    
+    # --- START: FIX ---
+    # Add the argument to tell Chrome to use our new unique directory.
+    chrome_options.add_argument(f"--user-data-dir={temp_dir.name}")
+    # --- END: FIX ---
 
     driver = None
     try:
-        # Initialize the driver with both manual paths specified.
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
         driver.get(url)
@@ -702,7 +708,7 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
                 is_adobe_site = detect_adobe_fonts_usage(soup)
                 google_link_fonts = extract_fonts_from_google_links(soup)
                 computed_fonts = assets.get('fonts', [])
-                fonts = process_fonts(computed_fonts, google_link_fonts, is_adobe_site)
+                fonts = process_processing(computed_fonts, google_link_fonts, is_adobe_site)
         
         return images, fonts, colors
 
@@ -710,6 +716,8 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
         if driver:
             print("Closing browser...")
             driver.quit()
+        # The temporary directory and all its contents will be automatically deleted here
+        temp_dir.cleanup()
 
     
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
