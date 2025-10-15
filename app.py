@@ -1,5 +1,6 @@
 # NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid
 import requests
+import tempfile
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -498,15 +499,19 @@ def init_driver() -> webdriver.Chrome:
     global driver
     print("Initializing Browser with Selenium Stealth...")
     
-    # Selenium Stealth handles the driver and browser setup automatically.
-    # This is more reliable on servers than manual setup.
-    
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
+    
+    # --- START: FINAL FIX FOR CONCURRENCY ---
+    # Create a unique, temporary user data directory for each Chrome instance.
+    # This prevents multiple Gunicorn workers from conflicting with each other.
+    user_data_dir = tempfile.mkdtemp()
+    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
+    # --- END: FINAL FIX FOR CONCURRENCY ---
     
     driver = webdriver.Chrome(options=chrome_options)
     
