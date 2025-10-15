@@ -1,6 +1,7 @@
 # NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid
 import requests
 import tempfile
+import shutil
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -471,7 +472,6 @@ MYFONTS_KNOWN_LIST: Set[str] = {'circular std', 'gt walsheim pro', 'avenir next'
 ICON_FONT_TERMS: Set[str] = {'icon', 'awesome', 'glyph', 'yootheme', 'eicons'}
 SYSTEM_FONTS: Set[str] = {'arial', 'helvetica neue', 'helvetica', 'times new roman', 'georgia', 'verdana', 'tahoma', '-apple-system', 'segoe ui'}
 SYSTEM_FONTS_CANONICAL = {re.sub(r'[\s_-]', '', s.lower()) for s in SYSTEM_FONTS}
-driver: Optional[webdriver.Chrome] = None
 
 def load_google_fonts_from_api() -> Dict[str, str]:
     global GOOGLE_FONTS_API_CACHE
@@ -495,42 +495,8 @@ def load_google_fonts_from_api() -> Dict[str, str]:
         print(f"Error fetching Google Fonts: {e}")
         GOOGLE_FONTS_API_CACHE = {}
         return {}
-def init_driver() -> webdriver.Chrome:
-    global driver
-    print("Initializing Browser with Selenium Stealth...")
-    
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1200")
-    
-    # --- START: FINAL FIX FOR CONCURRENCY ---
-    # Create a unique, temporary user data directory for each Chrome instance.
-    # This prevents multiple Gunicorn workers from conflicting with each other.
-    user_data_dir = tempfile.mkdtemp()
-    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-    # --- END: FINAL FIX FOR CONCURRENCY ---
-    
-    driver = webdriver.Chrome(options=chrome_options)
-    
-    stealth(driver,
-            languages=["en-US", "en"],
-            vendor="Google Inc.",
-            platform="Win32",
-            webgl_vendor="Intel Inc.",
-            renderer="Intel Iris OpenGL Engine",
-            fix_hairline=True,
-            )
-    
-    print("Browser Initialized.")
-    load_google_fonts_from_api()
-    return driver
-def get_driver() -> webdriver.Chrome:
-    global driver
-    if driver is None: driver = init_driver()
-    return driver
+
+
 def close_driver() -> None:
     global driver
     if driver: print("Closing browser..."); driver.quit()
@@ -685,30 +651,76 @@ def get_clustered_color_palette(color_data: Dict[str, float], threshold: float =
     if primary := [c['hex'] for c in final_sorted[:8]]: color_groups["Primary Palette"] = primary
     if secondary := [c['hex'] for c in final_sorted[8:24]]: color_groups["Secondary Colors"] = secondary
     return color_groups
-def extract_assets_from_page(driver: webdriver.Chrome, url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
+def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
     print(f"Analyzing page: {url}")
-    driver.get(url)
-    try: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-    except TimeoutException: print("Page took too long to load."); return set(), [], {}
-    if options.get('extract_images'):
-        print("Scrolling to trigger lazy-loading...")
-        if isinstance(total_h := driver.execute_script("return document.body.scrollHeight"), (int, float)) and isinstance(view_h := driver.execute_script("return window.innerHeight"), (int, float)) and view_h > 0:
-            for i in range(0, int(total_h), int(view_h)):
-                driver.execute_script(f"window.scrollTo(0, {i + view_h * 0.8});"); time.sleep(0.4)
-        time.sleep(1.0)
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
-    images, fonts, colors = set(), [], {}
-    if options.get('extract_images'):
-        images = extract_all_images_from_html(soup, driver.current_url).union(extract_css_background_images(driver))
-    if options.get('extract_fonts') or options.get('extract_colors'):
-        assets = get_computed_assets_from_selenium(driver)
-        if options.get('extract_colors'): colors = assets.get('colors', {})
-        if options.get('extract_fonts'):
-            is_adobe_site = detect_adobe_fonts_usage(soup)
-            google_link_fonts = extract_fonts_from_google_links(soup)
-            computed_fonts = assets.get('fonts', [])
-            fonts = process_fonts(computed_fonts, google_link_fonts, is_adobe_site)
-    return images, fonts, colors
+    
+    # --- START: NEW SELF-CONTAINED DRIVER SETUP ---
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1200")
+    
+    # Create a unique, temporary user data directory for each instance.
+    user_data_dir = tempfile.mkdtemp()
+    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
+    
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    stealth(driver,
+            languages=["en-US", "en"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True,
+            )
+    # --- END: NEW SELF-CONTAINED DRIVER SETUP ---
+
+    try:
+        driver.get(url)
+        try:
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        except TimeoutException:
+            print("Page took too long to load.")
+            return set(), [], {}
+
+        if options.get('extract_images'):
+            print("Scrolling to trigger lazy-loading...")
+            if isinstance(total_h := driver.execute_script("return document.body.scrollHeight"), (int, float)) and isinstance(view_h := driver.execute_script("return window.innerHeight"), (int, float)) and view_h > 0:
+                for i in range(0, int(total_h), int(view_h)):
+                    driver.execute_script(f"window.scrollTo(0, {i + view_h * 0.8});")
+                    time.sleep(0.4)
+            time.sleep(1.0)
+
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        images, fonts, colors = set(), [], {}
+
+        if options.get('extract_images'):
+            images = extract_all_images_from_html(soup, driver.current_url).union(extract_css_background_images(driver))
+
+        if options.get('extract_fonts') or options.get('extract_colors'):
+            assets = get_computed_assets_from_selenium(driver)
+            if options.get('extract_colors'):
+                colors = assets.get('colors', {})
+            if options.get('extract_fonts'):
+                is_adobe_site = detect_adobe_fonts_usage(soup)
+                google_link_fonts = extract_fonts_from_google_links(soup)
+                computed_fonts = assets.get('fonts', [])
+                fonts = process_fonts(computed_fonts, google_link_fonts, is_adobe_site)
+        
+        return images, fonts, colors
+
+    finally:
+        # --- START: CRITICAL FINAL STEP ---
+        # Ensure the browser is always closed and the temporary directory is cleaned up.
+        print("Closing browser and cleaning up...")
+        driver.quit()
+        import shutil
+        shutil.rmtree(user_data_dir, ignore_errors=True)
+        # --- END: CRITICAL FINAL STEP ---
+    
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
 def track_usage(tool_name: str, metadata: Optional[Dict] = None):
     if current_user.is_authenticated:
@@ -964,7 +976,7 @@ def handle_extraction_request() -> FlaskResponse:
     if not options or not (url := options.get('url')): return jsonify({'error': 'URL is required'}), 400
     url = 'https://' + url if not url.startswith(('http://', 'https://')) else url
     try:
-        images, fonts, colors = extract_assets_from_page(get_driver(), url, options)
+        images, fonts, colors = extract_assets_from_page(url, options)
         final_response: Dict[str, Any] = {}
         assets_found = False
         if options.get('extract_images') and (image_list := sorted(list(images))):
