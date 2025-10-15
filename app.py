@@ -710,6 +710,7 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
         if driver:
             print("Closing browser...")
             driver.quit()
+
     
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
 def track_usage(tool_name: str, metadata: Optional[Dict] = None):
