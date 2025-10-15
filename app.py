@@ -1,4 +1,4 @@
-# --- START: FINAL, COMPLETE APP.PY ---
+# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid
 import requests
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
@@ -15,11 +15,12 @@ import traceback
 import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 import webcolors
 from PIL import Image, UnidentifiedImageError
 import io
@@ -29,11 +30,19 @@ from typing import Optional, Set, List, Dict, Tuple, Any, Union
 from datetime import datetime, timedelta
 from functools import wraps
 import click
+import shutil
+import tempfile
 from sqlalchemy import func, and_, or_
 from werkzeug.exceptions import RequestEntityTooLarge
+
 import logging
+
+# --- START: SECURITY FIX ---
 import bleach
 from bleach.css_sanitizer import CSSSanitizer
+# --- END: SECURITY FIX ---
+
+# --- NEW: Google Analytics Imports ---
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import (
     DateRange,
@@ -46,30 +55,39 @@ from google.api_core import exceptions as google_exceptions
 import json
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
+
+# --- NEW: SendGrid Imports ---
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, From
+from sendgrid.helpers.mail import Mail, From # <-- FINAL FIX: Import the 'From' helper
 
 load_dotenv()
 
+# Initialize the Flask app, making it aware of the 'instance' folder
 app = Flask(__name__, instance_relative_config=True)
 csrf = CSRFProtect(app)
 
+# --- START: NEW LOGGING CONFIGURATION ---
 logging.basicConfig(level=logging.INFO)
+# --- END: NEW LOGGING CONFIGURATION ---
 
+# --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise ValueError("No SECRET_KEY set for Flask application")
 
 os.makedirs(app.instance_path, exist_ok=True)
+# Allow switching between production DB (PostgreSQL) and development DB (SQLite)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or f"sqlite:///{os.path.join(app.instance_path, 'users.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# --- File Upload Configuration ---
 app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
+# --- NEW: Custom Error Handler for 413 Error ---
 @app.errorhandler(413)
 @app.errorhandler(RequestEntityTooLarge)
 def handle_request_entity_too_large(e):
@@ -79,6 +97,8 @@ def handle_request_entity_too_large(e):
         return redirect(url_for('post_editor', post_id=post_id))
     return redirect(url_for('post_editor'))
 
+
+# --- GOOGLE OAUTH CONFIGURATION ---
 app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET')
 GA_PROPERTY_ID = os.environ.get('GA_PROPERTY_ID')
@@ -92,6 +112,7 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
+# --- SENDGRID CONFIGURATION ---
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
 app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'noreply@webassetsuite.com')
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -105,6 +126,8 @@ MAX_FILE_SIZE: int = 10 * 1024 * 1024
 MAX_IMAGE_DIMENSIONS: Tuple[int, int] = (8000, 8000)
 MAX_ANON_USES = 3
 
+
+# --- DATABASE MODELS ---
 post_tags = db.Table('post_tags',
     db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
@@ -183,7 +206,11 @@ class Subscriber(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     subscribed_on = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+# --- HELPER FUNCTIONS ---
+
 def send_email(to, subject, template):
+    """Sends an email using the SendGrid API with explicit From object."""
     api_key = app.config.get('SENDGRID_API_KEY')
     sender_tuple = app.config.get('MAIL_DEFAULT_SENDER')
 
@@ -191,11 +218,13 @@ def send_email(to, subject, template):
         app.logger.error("CRITICAL: SENDGRID_API_KEY not set in config. Email sending is disabled.")
         return
 
+    # --- FINAL FIX: Create an explicit 'From' object ---
     from_object = From(email=sender_tuple[1], name=sender_tuple[0])
+    
     app.logger.info(f"Email configuration - From: {from_object.get()}, To: {to}, Subject: {subject}")
 
     message = Mail(
-        from_email=from_object,
+        from_email=from_object, # Use the explicit object here
         to_emails=to,
         subject=subject,
         html_content=template
@@ -215,6 +244,7 @@ def send_email(to, subject, template):
         error_body = e.body if hasattr(e, 'body') else str(e)
         app.logger.error(f"An exception occurred while trying to send email via SendGrid.")
         app.logger.error(f"DETAILED SENDGRID ERROR: {error_body}")
+
 
 def sanitize_html(html_content):
     if not html_content:
@@ -240,6 +270,9 @@ def sanitize_html(html_content):
     )
     return cleaned_html
     
+# --- END: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
@@ -267,7 +300,13 @@ def log_user_activity(action, details=None):
         db.session.add(log_entry)
         db.session.commit()
 
+# --- START: NEW USAGE LIMIT HELPER ---
 def check_and_increment_usage():
+    """
+    Checks if an anonymous user has exceeded their usage limit.
+    Returns True if the request is allowed, False otherwise.
+    Increments the count if the user is anonymous and under the limit.
+    """
     if current_user.is_authenticated:
         return True
     
@@ -277,12 +316,14 @@ def check_and_increment_usage():
         return False
         
     session['usage_count'] = usage_count + 1
-    session.modified = True
+    session.modified = True # Ensure the session is saved
     return True
+# --- END: NEW USAGE LIMIT HELPER ---
 
 @app.cli.command("make-admin")
 @click.argument("email")
 def make_admin(email):
+    """Assigns admin privileges to a user."""
     user = User.query.filter_by(email=email).first()
     if user:
         user.role = 'admin'
@@ -292,7 +333,7 @@ def make_admin(email):
         print(f"User {email} not found.")
 
 def create_slug(title, model, existing_id=None):
-    if not title:
+    if not title: # Add a check for empty titles
         title = "untitled"
     slug = re.sub(r'[^\w\s-]', '', title).strip().lower()
     slug = re.sub(r'[\s_-]+', '-', slug)
@@ -323,6 +364,7 @@ def inject_ga_id():
 
 @app.before_request
 def before_request_callback():
+    # Publish scheduled posts
     scheduled_posts = Post.query.filter(Post.status == 'scheduled', Post.pub_date <= datetime.utcnow()).all()
     for post in scheduled_posts:
         post.status = 'published'
@@ -330,13 +372,17 @@ def before_request_callback():
         db.session.commit()
 
     if current_user.is_authenticated:
+        # Update last_seen timestamp
         current_user.last_seen = datetime.utcnow()
         
+        # Log activity
         if request.endpoint and request.endpoint != 'static':
              log_user_activity('page_visit', details=request.path)
         
+        # Enforce account status for authenticated users
         allowed_endpoints = ['logout', 'login', 'static'] 
         if current_user.status != 'active' and request.endpoint not in allowed_endpoints:
+            # If user is authenticated but not active, something is wrong. Log them out.
             status_message = current_user.status
             logout_user()
             if status_message == 'suspended':
@@ -349,6 +395,7 @@ def before_request_callback():
         
         db.session.commit()
 
+# --- Google Analytics Helper Function ---
 def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
     if not property_id or not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
         print("GA_PROPERTY_ID or GOOGLE_APPLICATION_CREDENTIALS not set. Skipping GA fetch.")
@@ -417,6 +464,8 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
         traceback.print_exc()
         return None
 
+
+# --- FONT CLASSIFICATION & SELENIUM MANAGEMENT ---
 GOOGLE_FONTS_API_CACHE: Optional[Dict[str, str]] = None
 MYFONTS_KNOWN_LIST: Set[str] = {'circular std', 'gt walsheim pro', 'avenir next', 'futura pt', 'neue haas unica', 'aktiv grotesk', 'brandon grotesque', 'gilroy', 'gotham', 'helvetica now', 'din next'}
 ICON_FONT_TERMS: Set[str] = {'icon', 'awesome', 'glyph', 'yootheme', 'eicons'}
@@ -446,6 +495,11 @@ def load_google_fonts_from_api() -> Dict[str, str]:
         GOOGLE_FONTS_API_CACHE = {}
         return {}
 
+
+def close_driver() -> None:
+    global driver
+    if driver: print("Closing browser..."); driver.quit()
+atexit.register(close_driver)
 def get_largest_from_srcset(srcset: Optional[str]) -> Optional[str]:
     if not srcset: return None
     sources: List[Tuple[int, str]] = []
@@ -458,7 +512,6 @@ def get_largest_from_srcset(srcset: Optional[str]) -> Optional[str]:
                 width = int(re.sub(r'\D', '', parts[1]))
             sources.append((width, url))
     return max(sources, key=lambda x: x[0])[1] if sources else None
-
 def extract_all_images_from_html(soup: BeautifulSoup, base_url: str) -> Set[str]:
     image_urls: Set[str] = set()
     for img in soup.find_all('img'):
@@ -478,11 +531,9 @@ def extract_all_images_from_html(soup: BeautifulSoup, base_url: str) -> Set[str]
             if (url := match.group(1).strip("'\"")) and not url.startswith('data:image'):
                 if len(full_url := urljoin(base_url, url)) < 2048: image_urls.add(full_url)
     return image_urls
-
 def extract_css_background_images(driver: webdriver.Chrome) -> Set[str]:
     script = "const u=new Set;return document.querySelectorAll('*').forEach(e=>{const t=window.getComputedStyle(e);if(t.backgroundImage&&'none'!==t.backgroundImage){const n=t.backgroundImage.match(/url\\(\"?(.+?)\"?\\)/);n&&n[1]&&!n[1].startsWith('data:image')&&u.add(n[1])}}),Array.from(u);"
     return {urljoin(driver.current_url, url) for url in driver.execute_script(script)}
-
 def extract_fonts_from_google_links(soup: BeautifulSoup) -> List[str]:
     found_fonts: Set[str] = set()
     for link in soup.find_all('link', href=True):
@@ -492,14 +543,12 @@ def extract_fonts_from_google_links(soup: BeautifulSoup) -> List[str]:
                     for font_name in family_str.split('|'):
                         found_fonts.add(font_name.split(':')[0].replace('+', ' ').strip())
     return list(found_fonts)
-
 def detect_adobe_fonts_usage(soup: BeautifulSoup) -> bool:
     for el_type in ['link', 'script']:
         for el in soup.find_all(el_type, href=True):
             if isinstance(href := el.get('href'), str) and 'use.typekit.net' in href:
                 print("Adobe Fonts loader detected."); return True
     print("Adobe Fonts loader not found."); return False
-
 def get_computed_assets_from_selenium(driver: webdriver.Chrome) -> Dict[str, Any]:
     script = """
     const getAssets = (rootElement) => {
@@ -532,7 +581,6 @@ def get_computed_assets_from_selenium(driver: webdriver.Chrome) -> Dict[str, Any
     return getAssets(document.body);
     """
     return driver.execute_script(script)
-
 def process_fonts(computed_fonts: List[str], google_link_fonts: List[str], is_adobe_site: bool) -> List[Dict[str, str]]:
     raw_font_names: Set[str] = set(google_link_fonts)
     generic_fallbacks: Set[str] = {'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-sans-serif', 'ui-serif', 'apple-system', 'blinkmacsystemfont'}
@@ -576,7 +624,6 @@ def process_fonts(computed_fonts: List[str], google_link_fonts: List[str], is_ad
                 result['urlName'] = google_fonts_map.get(classification_key, display_name)
             final_results.append(result)
     return final_results
-
 def get_clustered_color_palette(color_data: Dict[str, float], threshold: float = 45.0) -> Dict[str, List[str]]:
     hex_scores: Dict[str, float] = {}
     for color_str, score in color_data.items():
@@ -603,39 +650,32 @@ def get_clustered_color_palette(color_data: Dict[str, float], threshold: float =
     if primary := [c['hex'] for c in final_sorted[:8]]: color_groups["Primary Palette"] = primary
     if secondary := [c['hex'] for c in final_sorted[8:24]]: color_groups["Secondary Colors"] = secondary
     return color_groups
-
-# --- START: FINAL, CORRECT extract_assets_from_page FUNCTION ---
 def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
     print(f"Analyzing page: {url}")
     
     chrome_options = Options()
+    # --- START: FINAL EXPLICIT PATHS ---
+    # Manually specify the location of the Chrome browser itself.
     chrome_options.binary_location = "/usr/bin/google-chrome"
+    # Manually specify the location of the driver that controls the browser.
     service = ChromeService(executable_path='/usr/local/bin/chromedriver')
+    # --- END: FINAL EXPLICIT PATHS ---
     
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--disable-background-networking")
-    chrome_options.add_argument("--disable-sync")
-    chrome_options.add_argument("--disable-translate")
-    chrome_options.add_argument("--disable-popup-blocking")
-    chrome_options.add_argument("--disable-default-apps")
-    chrome_options.add_argument("--disable-background-timer-throttling")
-    chrome_options.add_argument("--disable-renderer-backgrounding")
-    chrome_options.add_argument("--disable-features=IsolateOrigins,site-per-process")
-    chrome_options.add_argument("--single-process")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 
     driver = None
     try:
+        # Initialize the driver with both manual paths specified.
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
         driver.get(url)
         try:
-            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         except TimeoutException:
             print("Page took too long to load.")
             return set(), [], {}
@@ -670,8 +710,7 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
         if driver:
             print("Closing browser...")
             driver.quit()
-# --- END: FINAL, CORRECT extract_assets_from_page FUNCTION ---
-
+    
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
 def track_usage(tool_name: str, metadata: Optional[Dict] = None):
     if current_user.is_authenticated:
@@ -684,7 +723,6 @@ def track_usage(tool_name: str, metadata: Optional[Dict] = None):
         db.session.add(usage)
         db.session.commit()
         log_user_activity('tool_usage', details=tool_name)
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -711,7 +749,6 @@ def login():
         else:
             flash('Invalid email or password. Please try again.', 'error')
     return render_template('login.html')
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -756,7 +793,6 @@ def register():
             flash('Could not create account due to a server issue. Please try again later.', 'error')
             return redirect(url_for('register'))
     return render_template('register.html')
-
 @app.route('/confirm/<token>')
 def confirm_email(token):
     try:
@@ -775,7 +811,6 @@ def confirm_email(token):
         login_user(user)
         flash('You have confirmed your account. Thanks!', 'success')
     return redirect(url_for('home'))
-
 @app.route('/resend-confirmation', methods=['POST'])
 def resend_confirmation():
     email = request.form.get('email')
@@ -791,18 +826,15 @@ def resend_confirmation():
     else:
         flash('If that email address is in our database, we have sent a new confirmation link.', 'success')
     return redirect(url_for('login'))
-
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('home'))
-
 @app.route('/login/google')
 def google_login():
     redirect_uri = "https://webassetsuite.com/login/google/callback"
     return oauth.google.authorize_redirect(redirect_uri)
-
 @app.route('/login/google/callback')
 def google_auth_callback():
     try:
@@ -820,6 +852,7 @@ def google_auth_callback():
     user = User.query.filter_by(email=user_email).first()
 
     if user is None:
+        # If the user is new, create them as confirmed and active
         user = User(
             email=user_email,
             first_name=user_info.get('given_name'),
@@ -830,13 +863,13 @@ def google_auth_callback():
         )
         db.session.add(user)
     else:
+        # If the user exists, ensure they are marked as active
         if user.status != 'active':
             user.status = 'active'
     
     db.session.commit()
     login_user(user, remember=True)
     return redirect(url_for('home'))
-
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -854,7 +887,6 @@ def forgot_password():
         flash('If an account with that email exists, a password reset link has been sent.', 'success')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
-
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     try:
@@ -870,7 +902,6 @@ def reset_password(token):
         flash('Your password has been updated successfully! Please log in.', 'success')
         return redirect(url_for('login'))
     return render_template('reset_password.html', token=token)
-
 @app.route('/')
 def home() -> str: return render_template('index.html')
 @app.route('/extractor')
@@ -891,7 +922,6 @@ def privacy_page() -> str: return render_template('privacy.html')
 def terms_page() -> str: return render_template('terms.html')
 @app.route('/disclaimer')
 def disclaimer_page() -> str: return render_template('disclaimer.html')
-
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
     email = request.form.get('email')
@@ -909,10 +939,10 @@ def subscribe():
         flash('Thank you for subscribing!', 'success')
         
     return redirect(request.referrer or url_for('home'))
-
 @app.route('/api/google-fonts')
 @csrf.exempt
 def get_google_fonts():
+    # MODIFIED: Usage limit check
     if not check_and_increment_usage():
         return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
 
@@ -925,7 +955,6 @@ def get_google_fonts():
         return Response(response.content, content_type=response.headers['Content-Type'])
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'Failed to fetch font data: {e}'}), 502
-
 @app.route('/extract', methods=['POST'])
 @csrf.exempt
 def handle_extraction_request() -> FlaskResponse:
@@ -964,10 +993,10 @@ def handle_extraction_request() -> FlaskResponse:
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
-
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
+    # MODIFIED: Usage limit check
     if not check_and_increment_usage():
         return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
 
@@ -1010,7 +1039,6 @@ def compress_image() -> FlaskResponse:
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': f'An error occurred: {e}'}), 500
-
 @app.route('/download-image')
 @login_required
 def download_image() -> FlaskResponse:
@@ -1034,9 +1062,6 @@ def download_image() -> FlaskResponse:
     except Exception as e:
         traceback.print_exc()
         return f"Failed to process image: {e}", 500
-
-# --- [ All Admin Routes are unchanged and should be here ] ---
-# (I am omitting them for brevity, but they should be pasted back in)
 @app.route('/admin')
 @app.route('/admin/dashboard')
 @login_required
@@ -1258,6 +1283,8 @@ def manage_posts():
                            search=search_query, category_filter=category_filter,
                            status_filter=status_filter, sort_by=sort_by)
 
+# --- POST MANAGEMENT ROUTES ---
+
 @app.route('/admin/posts/editor', methods=['GET'])
 @app.route('/admin/posts/editor/<int:post_id>', methods=['GET'])
 @login_required
@@ -1281,12 +1308,14 @@ def upload_image_for_editor():
         return jsonify({'error': 'Invalid file type'}), 400
 
     try:
+        # Check file size before saving
         file.seek(0, os.SEEK_END)
         file_length = file.tell()
         if file_length > MAX_FILE_SIZE: 
              return jsonify({'error': f'Image file size exceeds the limit of {MAX_FILE_SIZE // (1024*1024)}MB.'}), 413
         file.seek(0)
         
+        # Verify it's a valid image
         img = Image.open(file)
         img.verify()
         file.seek(0)
@@ -1303,24 +1332,31 @@ def upload_image_for_editor():
         print(f"Error during editor image upload: {e}")
         return jsonify({'error': 'Server error during image upload.'}), 500
 
+
 @app.route('/admin/posts/save', methods=['POST'])
 @login_required
 @moderator_or_admin_required
 def save_post():
     post_id = request.form.get('post_id')
     
+    # --- START: autoflush FIX ---
     if post_id:
         post = Post.query.get_or_404(post_id)
     else:
         post = Post(author_id=current_user.id)
     
+    # Set title first, as it's needed for the slug
     post.title = request.form.get('title')
     
+    # Now create the slug BEFORE adding a new post to the session
     post.slug = create_slug(post.title, Post, post.id)
     
+    # If it's a new post, now is the safe time to add it to the session
     if not post_id:
         db.session.add(post)
+    # --- END: autoflush FIX ---
     
+    # Sanitize the content from the rich text editor before saving
     raw_content = request.form.get('content')
     post.content = sanitize_html(raw_content)
 
@@ -1328,6 +1364,7 @@ def save_post():
     post.meta_description = request.form.get('meta_description')
     post.status = request.form.get('status')
     
+    # --- REVISED CATEGORY LOGIC ---
     category_name = request.form.get('category_name', '').strip()
     if category_name:
         category = Category.query.filter(func.lower(Category.name) == func.lower(category_name)).first()
@@ -1383,6 +1420,7 @@ def save_post():
     db.session.commit()
     flash(f'Post "{post.title}" saved successfully!', 'success')
     return redirect(url_for('manage_posts'))
+
 
 @app.route('/admin/posts/delete/<int:post_id>', methods=['POST'])
 @login_required
@@ -1459,6 +1497,7 @@ def delete_category(category_id):
         flash('Category deleted.', 'success')
     return redirect(url_for('manage_categories'))
 
+# --- PUBLIC BLOG ROUTES (UPDATED & FIXED) ---
 @app.route('/blog')
 def blog_list():
     page = request.args.get('page', 1, type=int)
@@ -1482,16 +1521,20 @@ def view_post(slug):
         else:
             return "Post not found", 404
     
+    # Increment view count if it's a real view by a non-author
     if post.status == 'published' and (not current_user.is_authenticated or current_user.id != post.author_id):
         post.views = (post.views or 0) + 1
         db.session.commit()
 
+    # --- START: NEW LOGIC FOR READ TIME & TABLE OF CONTENTS ---
     soup = BeautifulSoup(post.content, 'html.parser')
     
+    # 1. Calculate Read Time
     text_content = soup.get_text()
     word_count = len(text_content.split())
-    read_time = max(1, round(word_count / 200))
+    read_time = max(1, round(word_count / 200)) # Assumes 200 WPM reading speed
 
+    # 2. Generate Table of Contents and add IDs to headings
     toc = []
     headings = soup.find_all(['h2', 'h3'])
     for heading in headings:
@@ -1501,7 +1544,9 @@ def view_post(slug):
         heading['id'] = heading_id
         toc.append({'id': heading_id, 'text': heading_text, 'level': heading.name})
 
+    # Updated content with IDs in headings
     updated_content = str(soup)
+    # --- END: NEW LOGIC ---
         
     return render_template('post.html', post=post, is_preview=is_preview, 
                            read_time=read_time, toc=toc, content=updated_content)
@@ -1510,10 +1555,10 @@ def view_post(slug):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+    # Load debug status from environment variable
     DEBUG_MODE = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=DEBUG_MODE)
-
-# --- END: FINAL, COMPLETE APP.PY ---
