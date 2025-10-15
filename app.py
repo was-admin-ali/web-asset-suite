@@ -13,6 +13,7 @@ import re
 from urllib.parse import urljoin, unquote, urlparse, parse_qs
 import traceback
 import time
+from selenium_stealth import stealth
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
@@ -658,24 +659,34 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1200")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 1.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
     
-    # This points directly to the driver we installed on the server.
-    # No managers, no stealth, no magic.
-    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
+    # This is the correct way to handle unique directories per request
+    user_data_dir = tempfile.mkdtemp()
+    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
     
     driver = None  # Initialize driver to None
     try:
-        # This is now the most direct and reliable way to start Chrome.
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Selenium will now automatically find the correct driver for the installed Chrome
+        driver = webdriver.Chrome(options=chrome_options)
+        
+        stealth(driver,
+                languages=["en-US", "en"],
+                vendor="Google Inc.",
+                platform="Win32",
+                webgl_vendor="Intel Inc.",
+                renderer="Intel Iris OpenGL Engine",
+                fix_hairline=True,
+                )
         
         driver.get(url)
         try:
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
         except TimeoutException:
             print("Page took too long to load.")
             return set(), [], {}
 
+        # ... [The rest of your scrolling and parsing logic remains the same] ...
+        # This part is correct and does not need to be changed.
         if options.get('extract_images'):
             print("Scrolling to trigger lazy-loading...")
             if isinstance(total_h := driver.execute_script("return document.body.scrollHeight"), (int, float)) and isinstance(view_h := driver.execute_script("return window.innerHeight"), (int, float)) and view_h > 0:
@@ -695,7 +706,7 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
             if options.get('extract_colors'):
                 colors = assets.get('colors', {})
             if options.get('extract_fonts'):
-                is_adobe_site = detect_adobe_fonts_usage(soup)
+                is_adobe_site = detect_adobe_susage(soup)
                 google_link_fonts = extract_fonts_from_google_links(soup)
                 computed_fonts = assets.get('fonts', [])
                 fonts = process_fonts(computed_fonts, google_link_fonts, is_adobe_site)
@@ -706,6 +717,9 @@ def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str
         if driver:
             print("Closing browser...")
             driver.quit()
+        # Clean up the temporary directory
+        import shutil
+        shutil.rmtree(user_data_dir, ignore_errors=True)
     
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
 def track_usage(tool_name: str, metadata: Optional[Dict] = None):
