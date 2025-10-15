@@ -1,7 +1,6 @@
 # NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid
 import requests
 import tempfile
-import shutil
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -33,6 +32,7 @@ from typing import Optional, Set, List, Dict, Tuple, Any, Union
 from datetime import datetime, timedelta
 from functools import wraps
 import click
+import shutil
 from sqlalchemy import func, and_, or_
 from werkzeug.exceptions import RequestEntityTooLarge
 
