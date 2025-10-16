@@ -18,7 +18,6 @@ import time
 import webcolors
 from PIL import Image, UnidentifiedImageError
 import io
-import atexit
 import os
 from typing import Optional, Set, List, Dict, Tuple, Any, Union
 from datetime import datetime, timedelta
@@ -490,10 +489,7 @@ def load_google_fonts_from_api() -> Dict[str, str]:
         return {}
 
 
-def close_driver() -> None:
-    global driver
-    if driver: print("Closing browser..."); driver.quit()
-atexit.register(close_driver)
+
 def get_largest_from_srcset(srcset: Optional[str]) -> Optional[str]:
     if not srcset: return None
     sources: List[Tuple[int, str]] = []
