@@ -1,4 +1,6 @@
-# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid
+# --- START OF FINAL, COMPLETE app.py FILE ---
+
+# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid pyppeteer
 import requests
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
@@ -19,6 +21,7 @@ import webcolors
 from PIL import Image, UnidentifiedImageError
 import io
 import os
+import sys # Added for asyncio workaround
 from typing import Optional, Set, List, Dict, Tuple, Any, Union
 from datetime import datetime, timedelta
 from functools import wraps
@@ -27,15 +30,9 @@ import shutil
 import tempfile
 from sqlalchemy import func, and_, or_
 from werkzeug.exceptions import RequestEntityTooLarge
-
 import logging
-
-# --- START: SECURITY FIX ---
 import bleach
 from bleach.css_sanitizer import CSSSanitizer
-# --- END: SECURITY FIX ---
-
-# --- NEW: Google Analytics Imports ---
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import (
     DateRange,
@@ -48,39 +45,30 @@ from google.api_core import exceptions as google_exceptions
 import json
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
-
-# --- NEW: SendGrid Imports ---
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, From # <-- FINAL FIX: Import the 'From' helper
+from sendgrid.helpers.mail import Mail, From
 
 load_dotenv()
 
-# Initialize the Flask app, making it aware of the 'instance' folder
 app = Flask(__name__, instance_relative_config=True)
 csrf = CSRFProtect(app)
 
-# --- START: NEW LOGGING CONFIGURATION ---
 logging.basicConfig(level=logging.INFO)
-# --- END: NEW LOGGING CONFIGURATION ---
 
-# --- CONFIGURATION ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 if not app.config['SECRET_KEY']:
     raise ValueError("No SECRET_KEY set for Flask application")
 
 os.makedirs(app.instance_path, exist_ok=True)
-# Allow switching between production DB (PostgreSQL) and development DB (SQLite)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or f"sqlite:///{os.path.join(app.instance_path, 'users.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# --- File Upload Configuration ---
 app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# --- NEW: Custom Error Handler for 413 Error ---
 @app.errorhandler(413)
 @app.errorhandler(RequestEntityTooLarge)
 def handle_request_entity_too_large(e):
@@ -90,8 +78,6 @@ def handle_request_entity_too_large(e):
         return redirect(url_for('post_editor', post_id=post_id))
     return redirect(url_for('post_editor'))
 
-
-# --- GOOGLE OAUTH CONFIGURATION ---
 app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
 app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET')
 GA_PROPERTY_ID = os.environ.get('GA_PROPERTY_ID')
@@ -105,7 +91,6 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# --- SENDGRID CONFIGURATION ---
 app.config['SENDGRID_API_KEY'] = os.environ.get('SENDGRID_API_KEY')
 app.config['MAIL_DEFAULT_SENDER'] = ('Web Asset Suite', 'noreply@webassetsuite.com')
 s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -119,8 +104,6 @@ MAX_FILE_SIZE: int = 10 * 1024 * 1024
 MAX_IMAGE_DIMENSIONS: Tuple[int, int] = (8000, 8000)
 MAX_ANON_USES = 3
 
-
-# --- DATABASE MODELS ---
 post_tags = db.Table('post_tags',
     db.Column('post_id', db.Integer, db.ForeignKey('post.id'), primary_key=True),
     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
@@ -199,11 +182,7 @@ class Subscriber(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     subscribed_on = db.Column(db.DateTime, default=datetime.utcnow)
 
-
-# --- HELPER FUNCTIONS ---
-
 def send_email(to, subject, template):
-    """Sends an email using the SendGrid API with explicit From object."""
     api_key = app.config.get('SENDGRID_API_KEY')
     sender_tuple = app.config.get('MAIL_DEFAULT_SENDER')
 
@@ -211,13 +190,11 @@ def send_email(to, subject, template):
         app.logger.error("CRITICAL: SENDGRID_API_KEY not set in config. Email sending is disabled.")
         return
 
-    # --- FINAL FIX: Create an explicit 'From' object ---
     from_object = From(email=sender_tuple[1], name=sender_tuple[0])
-    
     app.logger.info(f"Email configuration - From: {from_object.get()}, To: {to}, Subject: {subject}")
 
     message = Mail(
-        from_email=from_object, # Use the explicit object here
+        from_email=from_object,
         to_emails=to,
         subject=subject,
         html_content=template
@@ -237,7 +214,6 @@ def send_email(to, subject, template):
         error_body = e.body if hasattr(e, 'body') else str(e)
         app.logger.error(f"An exception occurred while trying to send email via SendGrid.")
         app.logger.error(f"DETAILED SENDGRID ERROR: {error_body}")
-
 
 def sanitize_html(html_content):
     if not html_content:
@@ -262,9 +238,6 @@ def sanitize_html(html_content):
         protocols=allowed_protocols, css_sanitizer=css_sanitizer, strip=True
     )
     return cleaned_html
-    
-# --- END: SECURITY FIX (FINAL CORRECTED FUNCTION) ---
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -286,20 +259,14 @@ def admin_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-    
+
 def log_user_activity(action, details=None):
     if current_user.is_authenticated:
         log_entry = UserActivityLog(user_id=current_user.id, action=action, details=details)
         db.session.add(log_entry)
         db.session.commit()
 
-# --- START: NEW USAGE LIMIT HELPER ---
 def check_and_increment_usage():
-    """
-    Checks if an anonymous user has exceeded their usage limit.
-    Returns True if the request is allowed, False otherwise.
-    Increments the count if the user is anonymous and under the limit.
-    """
     if current_user.is_authenticated:
         return True
     
@@ -309,14 +276,12 @@ def check_and_increment_usage():
         return False
         
     session['usage_count'] = usage_count + 1
-    session.modified = True # Ensure the session is saved
+    session.modified = True 
     return True
-# --- END: NEW USAGE LIMIT HELPER ---
 
 @app.cli.command("make-admin")
 @click.argument("email")
 def make_admin(email):
-    """Assigns admin privileges to a user."""
     user = User.query.filter_by(email=email).first()
     if user:
         user.role = 'admin'
@@ -326,7 +291,7 @@ def make_admin(email):
         print(f"User {email} not found.")
 
 def create_slug(title, model, existing_id=None):
-    if not title: # Add a check for empty titles
+    if not title:
         title = "untitled"
     slug = re.sub(r'[^\w\s-]', '', title).strip().lower()
     slug = re.sub(r'[\s_-]+', '-', slug)
@@ -350,14 +315,13 @@ def load_user(user_id):
 def init_db_command():
     db.create_all()
     print("Initialized the database.")
-    
+
 @app.context_processor
 def inject_ga_id():
     return dict(GA_MEASUREMENT_ID=os.environ.get('GA_MEASUREMENT_ID'))
 
 @app.before_request
 def before_request_callback():
-    # Publish scheduled posts
     scheduled_posts = Post.query.filter(Post.status == 'scheduled', Post.pub_date <= datetime.utcnow()).all()
     for post in scheduled_posts:
         post.status = 'published'
@@ -365,17 +329,13 @@ def before_request_callback():
         db.session.commit()
 
     if current_user.is_authenticated:
-        # Update last_seen timestamp
         current_user.last_seen = datetime.utcnow()
         
-        # Log activity
         if request.endpoint and request.endpoint != 'static':
              log_user_activity('page_visit', details=request.path)
         
-        # Enforce account status for authenticated users
         allowed_endpoints = ['logout', 'login', 'static'] 
         if current_user.status != 'active' and request.endpoint not in allowed_endpoints:
-            # If user is authenticated but not active, something is wrong. Log them out.
             status_message = current_user.status
             logout_user()
             if status_message == 'suspended':
@@ -388,7 +348,6 @@ def before_request_callback():
         
         db.session.commit()
 
-# --- Google Analytics Helper Function ---
 def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
     if not property_id or not os.environ.get('GOOGLE_APPLICATION_CREDENTIALS'):
         print("GA_PROPERTY_ID or GOOGLE_APPLICATION_CREDENTIALS not set. Skipping GA fetch.")
@@ -406,7 +365,6 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
             request_visitors = RunReportRequest(property=f"properties/{property_id}", metrics=[Metric(name="totalUsers")], date_ranges=[date_range])
             response_visitors = client.run_report(request_visitors)
             ga_data["total_visitors_30_days"] = int(response_visitors.rows[0].metric_values[0].value) if response_visitors.rows else 0
-
             request_country = RunReportRequest(property=f"properties/{property_id}", dimensions=[Dimension(name="country")], metrics=[Metric(name="totalUsers")], date_ranges=[date_range], limit=100)
             response_country = client.run_report(request_country)
             ga_data["user_map_data"] = {row.dimension_values[0].value: int(row.metric_values[0].value) for row in response_country.rows}
@@ -415,7 +373,6 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
             request_channels = RunReportRequest(property=f"properties/{property_id}", dimensions=[Dimension(name="sessionDefaultChannelGroup")], metrics=[Metric(name="sessions")], date_ranges=[date_range])
             response_channels = client.run_report(request_channels)
             ga_data["sessions_by_channel"] = {row.dimension_values[0].value: int(row.metric_values[0].value) for row in response_channels.rows}
-            
             request_referrals = RunReportRequest(property=f"properties/{property_id}", dimensions=[Dimension(name="sessionSource")], metrics=[Metric(name="sessions")], date_ranges=[date_range], limit=10)
             response_referrals = client.run_report(request_referrals)
             ga_data["top_referrals"] = {row.dimension_values[0].value: int(row.metric_values[0].value) for row in response_referrals.rows if row.dimension_values[0].value != '(direct)'}
@@ -430,7 +387,6 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
             request_total = RunRealtimeReportRequest(property=f"properties/{property_id}", metrics=[Metric(name="activeUsers")])
             response_total = client.run_realtime_report(request_total)
             ga_data["realtime_total"] = int(response_total.rows[0].metric_values[0].value) if response_total.rows else 0
-
             request_details = RunRealtimeReportRequest(
                 property=f"properties/{property_id}",
                 dimensions=[Dimension(name="country"), Dimension(name="city"), Dimension(name="deviceCategory"), Dimension(name="unifiedScreenName")],
@@ -438,7 +394,6 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
                 limit=100
             )
             response_details = client.run_realtime_report(request_details)
-            
             realtime_page_views = []
             for row in response_details.rows:
                 realtime_page_views.append({
@@ -457,8 +412,6 @@ def get_google_analytics_data(property_id, reports: List[str] = ['overview']):
         traceback.print_exc()
         return None
 
-
-# --- FONT CLASSIFICATION & SELENIUM MANAGEMENT ---
 GOOGLE_FONTS_API_CACHE: Optional[Dict[str, str]] = None
 MYFONTS_KNOWN_LIST: Set[str] = {'circular std', 'gt walsheim pro', 'avenir next', 'futura pt', 'neue haas unica', 'aktiv grotesk', 'brandon grotesque', 'gilroy', 'gotham', 'helvetica now', 'din next'}
 ICON_FONT_TERMS: Set[str] = {'icon', 'awesome', 'glyph', 'yootheme', 'eicons'}
@@ -488,8 +441,6 @@ def load_google_fonts_from_api() -> Dict[str, str]:
         GOOGLE_FONTS_API_CACHE = {}
         return {}
 
-
-
 def get_largest_from_srcset(srcset: Optional[str]) -> Optional[str]:
     if not srcset: return None
     sources: List[Tuple[int, str]] = []
@@ -502,6 +453,7 @@ def get_largest_from_srcset(srcset: Optional[str]) -> Optional[str]:
                 width = int(re.sub(r'\D', '', parts[1]))
             sources.append((width, url))
     return max(sources, key=lambda x: x[0])[1] if sources else None
+
 def extract_all_images_from_html(soup: BeautifulSoup, base_url: str) -> Set[str]:
     image_urls: Set[str] = set()
     for img in soup.find_all('img'):
@@ -516,43 +468,33 @@ def extract_all_images_from_html(soup: BeautifulSoup, base_url: str) -> Set[str]
             src_to_use = get_largest_from_srcset(srcset_val) if isinstance(srcset_val, str) else src_val
         if isinstance(src_to_use, str) and not src_to_use.startswith(('data:image', 'about:blank')):
             if len(full_url := urljoin(base_url, src_to_use)) < 2048: image_urls.add(full_url)
-    for element in soup.select('[style*="background-image"]'):
-        if isinstance(style := element.get('style'), str) and (match := re.search(r'url\((.*?)\)', style)):
-            if (url := match.group(1).strip("'\"")) and not url.startswith('data:image'):
-                if len(full_url := urljoin(base_url, url)) < 2048: image_urls.add(full_url)
     return image_urls
-# --- REPLACE THE OLD FUNCTION WITH THIS ---
+
 def extract_css_background_images(soup: BeautifulSoup, base_url: str) -> Set[str]:
     image_urls: Set[str] = set()
-    
-    # First, find images in inline style attributes
     for element in soup.select('[style*="background-image"]'):
         if isinstance(style := element.get('style'), str) and (match := re.search(r'url\((.*?)\)', style)):
             if (url := match.group(1).strip("'\"")) and not url.startswith('data:image'):
                 if len(full_url := urljoin(base_url, url)) < 2048:
                     image_urls.add(full_url)
-
-    # Next, find linked stylesheets and parse them
     for link in soup.find_all('link', rel='stylesheet', href=True):
         if isinstance(href := link.get('href'), str):
             css_url = urljoin(base_url, href)
             try:
                 css_response = requests.get(css_url, timeout=10)
                 css_response.raise_for_status()
-                # Find all url() declarations in the CSS content
                 urls_in_css = re.findall(r'url\((.*?)\)', css_response.text)
                 for url in urls_in_css:
                     clean_url = url.strip("'\"")
                     if not clean_url.startswith(('data:image', '#')):
-                         # CSS URLs are relative to the CSS file itself
                         full_url = urljoin(css_url, clean_url)
                         if len(full_url) < 2048:
                             image_urls.add(full_url)
             except requests.RequestException as e:
                 print(f"Could not fetch or parse CSS file: {css_url}. Reason: {e}")
                 continue
-                
     return image_urls
+
 def extract_fonts_from_google_links(soup: BeautifulSoup) -> List[str]:
     found_fonts: Set[str] = set()
     for link in soup.find_all('link', href=True):
@@ -562,44 +504,14 @@ def extract_fonts_from_google_links(soup: BeautifulSoup) -> List[str]:
                     for font_name in family_str.split('|'):
                         found_fonts.add(font_name.split(':')[0].replace('+', ' ').strip())
     return list(found_fonts)
+
 def detect_adobe_fonts_usage(soup: BeautifulSoup) -> bool:
     for el_type in ['link', 'script']:
         for el in soup.find_all(el_type, href=True):
             if isinstance(href := el.get('href'), str) and 'use.typekit.net' in href:
                 print("Adobe Fonts loader detected."); return True
     print("Adobe Fonts loader not found."); return False
-def get_computed_assets_from_selenium(driver: webdriver.Chrome) -> Dict[str, Any]:
-    script = """
-    const getAssets = (rootElement) => {
-        const elements = rootElement.querySelectorAll('*:not(script):not(style):not(link):not(meta)');
-        const fontFamilies = new Set();
-        const colorsByArea = {};
-        elements.forEach(el => {
-            if (typeof el.getClientRects !== 'function' || el.getClientRects().length === 0) return;
-            const style = window.getComputedStyle(el);
-            const rect = el.getBoundingClientRect();
-            const area = rect.width * rect.height;
-            if (area < 1) return;
-            if (style.fontFamily) fontFamilies.add(style.fontFamily);
-            ['color', 'backgroundColor'].forEach(prop => {
-                const c = style[prop];
-                if (c && c !== 'rgba(0, 0, 0, 0)') {
-                    colorsByArea[c] = (colorsByArea[c] || 0) + area;
-                }
-            });
-            if (el.shadowRoot) {
-                const shadowAssets = getAssets(el.shadowRoot);
-                shadowAssets.fonts.forEach(font => fontFamilies.add(font));
-                for (const c in shadowAssets.colors) {
-                    colorsByArea[c] = (colorsByArea[c] || 0) + shadowAssets.colors[c];
-                }
-            }
-        });
-        return { fonts: Array.from(fontFamilies), colors: colorsByArea };
-    };
-    return getAssets(document.body);
-    """
-    return driver.execute_script(script)
+
 def process_fonts(computed_fonts: List[str], google_link_fonts: List[str], is_adobe_site: bool) -> List[Dict[str, str]]:
     raw_font_names: Set[str] = set(google_link_fonts)
     generic_fallbacks: Set[str] = {'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-sans-serif', 'ui-serif', 'apple-system', 'blinkmacsystemfont'}
@@ -643,6 +555,7 @@ def process_fonts(computed_fonts: List[str], google_link_fonts: List[str], is_ad
                 result['urlName'] = google_fonts_map.get(classification_key, display_name)
             final_results.append(result)
     return final_results
+
 def get_clustered_color_palette(color_data: Dict[str, float], threshold: float = 45.0) -> Dict[str, List[str]]:
     hex_scores: Dict[str, float] = {}
     for color_str, score in color_data.items():
@@ -669,12 +582,11 @@ def get_clustered_color_palette(color_data: Dict[str, float], threshold: float =
     if primary := [c['hex'] for c in final_sorted[:8]]: color_groups["Primary Palette"] = primary
     if secondary := [c['hex'] for c in final_sorted[8:24]]: color_groups["Secondary Colors"] = secondary
     return color_groups
-# THIS REPLACES YOUR OLD FUNCTION COMPLETELY
+
 async def extract_assets_from_page_async(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
     print(f"Analyzing page using Enhanced Hybrid Method: {url}")
     browser = None
     try:
-        # Launch the headless browser. The 'args' are crucial for running on a server.
         browser = await launch(
             headless=True,
             args=[
@@ -686,7 +598,6 @@ async def extract_assets_from_page_async(url: str, options: Dict[str, Any]) -> T
         page = await browser.newPage()
         await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 30000})
 
-        # --- THIS IS THE ENHANCEMENT THAT FIXES THE SCROLLING PROBLEM ---
         if options.get('extract_images'):
             print("Scrolling to trigger lazy-loading...")
             await page.evaluate('''
@@ -706,22 +617,17 @@ async def extract_assets_from_page_async(url: str, options: Dict[str, Any]) -> T
                     });
                 }
             ''')
-            # Wait a moment for any final images to load after scrolling
             await asyncio.sleep(2)
-        # --- END OF SCROLLING ENHANCEMENT ---
 
-        # Get the final, fully-rendered HTML content
         final_html = await page.content()
         soup = BeautifulSoup(final_html, 'html.parser')
 
         images, fonts, colors = set(), [], {}
 
-        # The rest of the extraction logic can now run on the perfect HTML
         if options.get('extract_images'):
             images = extract_all_images_from_html(soup, url).union(extract_css_background_images(soup, url))
 
         if options.get('extract_fonts') or options.get('extract_colors'):
-            # Getting computed styles is still possible
             assets = await page.evaluate('''() => {
                 const elements = document.querySelectorAll('*:not(script):not(style):not(link):not(meta)');
                 const fontFamilies = new Set();
@@ -757,12 +663,16 @@ async def extract_assets_from_page_async(url: str, options: Dict[str, Any]) -> T
         if browser:
             await browser.close()
 
-# We need a small wrapper to run the async function in our Flask route
 def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
+    if sys.version_info >= (3, 8) and os.name == 'posix':
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
     return asyncio.run(extract_assets_from_page_async(url, options))
-
     
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
+
 def track_usage(tool_name: str, metadata: Optional[Dict] = None):
     if current_user.is_authenticated:
         data_to_store = json.dumps(metadata) if metadata else None
@@ -774,6 +684,7 @@ def track_usage(tool_name: str, metadata: Optional[Dict] = None):
         db.session.add(usage)
         db.session.commit()
         log_user_activity('tool_usage', details=tool_name)
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -793,13 +704,13 @@ def login():
             if user.status == 'pending':
                 flash('Your account is pending approval by an administrator.', 'error')
                 return redirect(url_for('login'))
-
             login_user(user, remember=True)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('home'))
         else:
             flash('Invalid email or password. Please try again.', 'error')
     return render_template('login.html')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -810,15 +721,12 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
-
         if password != confirm_password:
             flash('Passwords do not match. Please try again.', 'error')
             return redirect(url_for('register'))
-
         if User.query.filter_by(email=email).first():
             flash('Email address already exists.', 'error')
             return redirect(url_for('register'))
-            
         new_user = User(
             email=email, 
             first_name=first_name, 
@@ -829,12 +737,10 @@ def register():
         try:
             db.session.add(new_user)
             db.session.commit()
-            
             token = s.dumps(email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
             html = render_template('email/confirm_account.html', confirm_url=confirm_url)
             send_email(email, "Please confirm your email", html)
-
             flash('A confirmation email has been sent to your email address. Please check your inbox to activate your account.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
@@ -844,6 +750,7 @@ def register():
             flash('Could not create account due to a server issue. Please try again later.', 'error')
             return redirect(url_for('register'))
     return render_template('register.html')
+
 @app.route('/confirm/<token>')
 def confirm_email(token):
     try:
@@ -862,6 +769,7 @@ def confirm_email(token):
         login_user(user)
         flash('You have confirmed your account. Thanks!', 'success')
     return redirect(url_for('home'))
+
 @app.route('/resend-confirmation', methods=['POST'])
 def resend_confirmation():
     email = request.form.get('email')
@@ -877,15 +785,18 @@ def resend_confirmation():
     else:
         flash('If that email address is in our database, we have sent a new confirmation link.', 'success')
     return redirect(url_for('login'))
+
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return redirect(url_for('home'))
+
 @app.route('/login/google')
 def google_login():
     redirect_uri = "https://webassetsuite.com/login/google/callback"
     return oauth.google.authorize_redirect(redirect_uri)
+
 @app.route('/login/google/callback')
 def google_auth_callback():
     try:
@@ -903,7 +814,6 @@ def google_auth_callback():
     user = User.query.filter_by(email=user_email).first()
 
     if user is None:
-        # If the user is new, create them as confirmed and active
         user = User(
             email=user_email,
             first_name=user_info.get('given_name'),
@@ -914,13 +824,13 @@ def google_auth_callback():
         )
         db.session.add(user)
     else:
-        # If the user exists, ensure they are marked as active
         if user.status != 'active':
             user.status = 'active'
     
     db.session.commit()
     login_user(user, remember=True)
     return redirect(url_for('home'))
+
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -938,6 +848,7 @@ def forgot_password():
         flash('If an account with that email exists, a password reset link has been sent.', 'success')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
+
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     try:
@@ -953,26 +864,37 @@ def reset_password(token):
         flash('Your password has been updated successfully! Please log in.', 'success')
         return redirect(url_for('login'))
     return render_template('reset_password.html', token=token)
+
 @app.route('/')
 def home() -> str: return render_template('index.html')
+
 @app.route('/extractor')
 def extractor_page() -> str: return render_template('extractor.html')
+
 @app.route('/compressor')
 def compressor_page() -> str: return render_template('compressor.html')
+
 @app.route('/contrast-checker')
 def contrast_checker_page() -> str: return render_template('contrast_checker.html')
+
 @app.route('/font-pairings')
 def font_pairings_page() -> str: return render_template('font_pairings.html')
+
 @app.route('/about')
 def about_page() -> str: return render_template('about.html')
+
 @app.route('/contact')
 def contact_page() -> str: return render_template('contact.html')
+
 @app.route('/privacy-policy')
 def privacy_page() -> str: return render_template('privacy.html')
+
 @app.route('/terms-and-conditions')
 def terms_page() -> str: return render_template('terms.html')
+
 @app.route('/disclaimer')
 def disclaimer_page() -> str: return render_template('disclaimer.html')
+
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
     email = request.form.get('email')
@@ -990,10 +912,10 @@ def subscribe():
         flash('Thank you for subscribing!', 'success')
         
     return redirect(request.referrer or url_for('home'))
+
 @app.route('/api/google-fonts')
 @csrf.exempt
 def get_google_fonts():
-    # MODIFIED: Usage limit check
     if not check_and_increment_usage():
         return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
 
@@ -1006,6 +928,7 @@ def get_google_fonts():
         return Response(response.content, content_type=response.headers['Content-Type'])
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'Failed to fetch font data: {e}'}), 502
+
 @app.route('/extract', methods=['POST'])
 @csrf.exempt
 def handle_extraction_request() -> FlaskResponse:
@@ -1019,7 +942,7 @@ def handle_extraction_request() -> FlaskResponse:
     url = 'https://' + url if not url.startswith(('http://', 'https://')) else url
     
     try:
-        images, fonts, colors = extract_assets_from_page(url, options)
+        images, fonts, colors_data = extract_assets_from_page(url, options)
         
         final_response: Dict[str, Any] = {}
         assets_found = False
@@ -1030,7 +953,7 @@ def handle_extraction_request() -> FlaskResponse:
         if options.get('extract_fonts') and (font_list := sorted(fonts, key=lambda x: x.get('displayName', ''))):
             final_response['fonts'] = font_list
             assets_found = True
-        if options.get('extract_colors') and (color_palette := get_clustered_color_palette(colors)):
+        if options.get('extract_colors') and (color_palette := get_clustered_color_palette(colors_data)):
             final_response['colors'] = color_palette
             assets_found = True
 
@@ -1043,11 +966,14 @@ def handle_extraction_request() -> FlaskResponse:
     
     except Exception as e:
         traceback.print_exc()
+        error_message = str(e)
+        if "net::ERR_NAME_NOT_RESOLVED" in error_message:
+            return jsonify({'error': 'The domain name could not be found. Please check the URL.'}), 500
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
+
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
-    # MODIFIED: Usage limit check
     if not check_and_increment_usage():
         return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
 
@@ -1090,6 +1016,7 @@ def compress_image() -> FlaskResponse:
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': f'An error occurred: {e}'}), 500
+
 @app.route('/download-image')
 @login_required
 def download_image() -> FlaskResponse:
@@ -1113,6 +1040,7 @@ def download_image() -> FlaskResponse:
     except Exception as e:
         traceback.print_exc()
         return f"Failed to process image: {e}", 500
+
 @app.route('/admin')
 @app.route('/admin/dashboard')
 @login_required
@@ -1120,44 +1048,37 @@ def download_image() -> FlaskResponse:
 def admin_dashboard():
     now = datetime.utcnow()
     day_ago, week_ago, month_ago, two_months_ago = now - timedelta(days=1), now - timedelta(days=7), now - timedelta(days=30), now - timedelta(days=60)
-    
     total_users = User.query.count()
     new_users_day, new_users_week, new_users_month = User.query.filter(User.created_at >= day_ago).count(), User.query.filter(User.created_at >= week_ago).count(), User.query.filter(User.created_at >= month_ago).count()
     dau, mau = User.query.filter(User.last_seen >= day_ago).count(), User.query.filter(User.last_seen >= month_ago).count()
-
     churn_cohort_total = User.query.filter(User.created_at.between(two_months_ago, month_ago)).count()
     churn_rate = 0.0
     if churn_cohort_total > 0:
         churn_cohort_active = User.query.filter(User.created_at.between(two_months_ago, month_ago), User.last_seen >= month_ago).count()
         churn_rate = (1 - (churn_cohort_active / churn_cohort_total)) * 100
-
     days = [(now.date() - timedelta(days=i)) for i in range(29, -1, -1)]
     signups_map = {str(date_obj): count for date_obj, count in db.session.query(func.date(User.created_at), func.count(User.id)).filter(User.created_at >= month_ago).group_by(func.date(User.created_at)).all()}
     signup_data = [signups_map.get(str(day), 0) for day in days]
     chart_labels = [day.strftime('%b %d') for day in days]
-    
     tool_usage_counts = db.session.query(ToolUsage.tool_name, func.count(ToolUsage.id)).group_by(ToolUsage.tool_name).all()
     recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
-    
     ga_data = get_google_analytics_data(GA_PROPERTY_ID, reports=['overview'])
-
     funnel_data = {'visitors': ga_data.get('total_visitors_30_days', 0) if ga_data else 0, 'signups': total_users, 'active_users': mau}
-    
     active_v_inactive = {'active': mau, 'inactive': total_users - mau}
-
-
     return render_template(
         'admin/dashboard.html',
         dau=dau, mau=mau, new_users_day=new_users_day, new_users_week=new_users_week, new_users_month=new_users_month,
         churn_rate=churn_rate, funnel_data=funnel_data, total_users=total_users, chart_labels=chart_labels, signup_data=signup_data,
         tool_usage_counts=dict(tool_usage_counts), recent_users=recent_users, ga_data=ga_data, active_v_inactive=active_v_inactive
     )
+
 @app.route('/admin/analytics/acquisition')
 @login_required
 @admin_required
 def acquisition_analytics():
     ga_data = get_google_analytics_data(GA_PROPERTY_ID, reports=['acquisition'])
     return render_template('admin/acquisition_analytics.html', ga_data=ga_data)
+
 @app.route('/admin/analytics/engagement')
 @login_required
 @admin_required
@@ -1168,18 +1089,16 @@ def engagement_analytics():
         cohort_start, cohort_end, activity_start = now - timedelta(days=days*2), now - timedelta(days=days), now - timedelta(days=days)
         cohort_total = User.query.filter(User.created_at.between(cohort_start, cohort_end)).count()
         retention_data[f'{days}_day'] = ((User.query.filter(User.created_at.between(cohort_start, cohort_end), User.last_seen >= activity_start).count() / cohort_total) * 100) if cohort_total > 0 else None
-    
     tool_usage_counts = db.session.query(ToolUsage.tool_name, func.count(ToolUsage.id)).group_by(ToolUsage.tool_name).order_by(func.count(ToolUsage.id).desc()).all()
     ga_data = get_google_analytics_data(GA_PROPERTY_ID, reports=['engagement'])
-
     return render_template('admin/engagement_analytics.html', ga_data=ga_data, retention_data=retention_data, tool_usage_counts=dict(tool_usage_counts))
+
 @app.route('/admin/analytics/creative-insights')
 @login_required
 @admin_required
 def creative_insights():
     compressor_usages = ToolUsage.query.filter_by(tool_name='compressor').all()
     total_original_size, total_compressed_size, file_type_counts = 0, 0, {}
-    
     for usage in compressor_usages:
         if usage.metadata_json:
             try:
@@ -1189,11 +1108,10 @@ def creative_insights():
                 file_type = data.get('file_type')
                 if file_type: file_type_counts[file_type] = file_type_counts.get(file_type, 0) + 1
             except json.JSONDecodeError: continue
-
     avg_compression_ratio = (1 - (total_compressed_size / total_original_size)) * 100 if total_original_size > 0 else 0
     sorted_file_types = dict(sorted(file_type_counts.items(), key=lambda item: item[1], reverse=True))
-
     return render_template('admin/creative_insights.html', avg_compression_ratio=avg_compression_ratio, file_type_counts=sorted_file_types)
+
 @app.route('/admin/analytics/real-time')
 @login_required
 @admin_required
@@ -1202,6 +1120,7 @@ def real_time_analytics():
     fifteen_minutes_ago = datetime.utcnow() - timedelta(minutes=15)
     recent_tool_usages = db.session.query(ToolUsage.tool_name, func.count(ToolUsage.id)).filter(ToolUsage.timestamp >= fifteen_minutes_ago).group_by(ToolUsage.tool_name).all()
     return render_template('admin/real_time_analytics.html', ga_data=ga_data, recent_tool_usages=dict(recent_tool_usages))
+
 @app.route('/admin/users')
 @login_required
 @admin_required
@@ -1210,9 +1129,7 @@ def manage_users():
     query = request.args.get('query', '')
     status_filter = request.args.get('status', '')
     role_filter = request.args.get('role', '')
-
     base_query = User.query
-
     if query:
         search_term = f"%{query}%"
         base_query = base_query.filter(
@@ -1227,15 +1144,16 @@ def manage_users():
         base_query = base_query.filter(User.status == status_filter)
     if role_filter:
         base_query = base_query.filter(User.role == role_filter)
-
     users = base_query.order_by(User.id.desc()).paginate(page=page, per_page=20)
     return render_template('admin/manage_users.html', users=users, query=query, status_filter=status_filter, role_filter=role_filter)
+
 @app.route('/admin/subscribers')
 @login_required
 @admin_required
 def manage_subscribers():
     subscribers = Subscriber.query.order_by(Subscriber.subscribed_on.desc()).all()
     return render_template('admin/manage_subscribers.html', subscribers=subscribers)
+
 @app.route('/admin/subscribers/delete/<int:subscriber_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -1245,20 +1163,19 @@ def delete_subscriber(subscriber_id):
     db.session.commit()
     flash(f'Subscriber {subscriber.email} has been deleted.', 'success')
     return redirect(url_for('manage_subscribers'))
+
 @app.route('/admin/users/view/<int:user_id>')
 @login_required
 @admin_required
 def view_user(user_id):
     user = User.query.get_or_404(user_id)
     page = request.args.get('page', 1, type=int)
-    
     activity_log = user.activity_logs.order_by(UserActivityLog.timestamp.desc()).paginate(page=page, per_page=15)
-    
     usage_stats = db.session.query(
         ToolUsage.tool_name, func.count(ToolUsage.id)
     ).filter(ToolUsage.user_id == user_id).group_by(ToolUsage.tool_name).all()
-    
     return render_template('admin/user_details.html', user=user, activity_log=activity_log, usage_stats=dict(usage_stats))
+
 @app.route('/admin/users/edit/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
@@ -1274,6 +1191,7 @@ def edit_user(user_id):
         flash(f'User {user.email} updated successfully.', 'success')
         return redirect(url_for('manage_users'))
     return render_template('admin/edit_user.html', user=user)
+
 @app.route('/admin/users/delete/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -1286,6 +1204,7 @@ def delete_user(user_id):
     db.session.commit()
     flash(f'User {user.email} has been deleted.', 'success')
     return redirect(url_for('manage_users'))
+
 @app.route('/admin/users/toggle_status/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -1299,6 +1218,7 @@ def toggle_user_status(user_id):
         flash(f'User {user.email} has been activated.', 'success')
     db.session.commit()
     return redirect(url_for('manage_users'))
+
 @app.route('/admin/posts')
 @login_required
 @moderator_or_admin_required
@@ -1308,33 +1228,25 @@ def manage_posts():
     category_filter = request.args.get('category', '')
     status_filter = request.args.get('status', '')
     sort_by = request.args.get('sort', 'date_desc')
-
     base_query = Post.query.outerjoin(User).outerjoin(Category)
-
     if search_query:
         search_term = f"%{search_query}%"
         base_query = base_query.filter(or_(Post.title.ilike(search_term), User.first_name.ilike(search_term)))
-    
     if category_filter:
         base_query = base_query.filter(Category.slug == category_filter)
     if status_filter:
         base_query = base_query.filter(Post.status == status_filter)
-        
     if sort_by == 'date_asc':
         base_query = base_query.order_by(Post.pub_date.asc())
     elif sort_by == 'views_desc':
         base_query = base_query.order_by(Post.views.desc())
-    else: # Default date_desc
+    else:
         base_query = base_query.order_by(Post.pub_date.desc())
-
     posts = base_query.paginate(page=page, per_page=15)
     categories = Category.query.all()
-    
     return render_template('admin/manage_posts.html', posts=posts, categories=categories,
                            search=search_query, category_filter=category_filter,
                            status_filter=status_filter, sort_by=sort_by)
-
-# --- POST MANAGEMENT ROUTES ---
 
 @app.route('/admin/posts/editor', methods=['GET'])
 @app.route('/admin/posts/editor/<int:post_id>', methods=['GET'])
@@ -1352,70 +1264,46 @@ def post_editor(post_id=None):
 def upload_image_for_editor():
     if 'image' not in request.files:
         return jsonify({'error': 'No image file provided'}), 400
-
     file = request.files['image']
-
     if file.filename == '' or not allowed_file(file.filename):
         return jsonify({'error': 'Invalid file type'}), 400
-
     try:
-        # Check file size before saving
         file.seek(0, os.SEEK_END)
         file_length = file.tell()
         if file_length > MAX_FILE_SIZE: 
              return jsonify({'error': f'Image file size exceeds the limit of {MAX_FILE_SIZE // (1024*1024)}MB.'}), 413
         file.seek(0)
-        
-        # Verify it's a valid image
         img = Image.open(file)
         img.verify()
         file.seek(0)
-
         filename = secure_filename(f"{int(datetime.utcnow().timestamp())}-{file.filename}")
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        
         image_url = url_for('uploaded_file', filename=filename)
         return jsonify({'location': image_url})
-
     except UnidentifiedImageError:
         return jsonify({'error': 'The uploaded file is not a valid image.'}), 400
     except Exception as e:
         print(f"Error during editor image upload: {e}")
         return jsonify({'error': 'Server error during image upload.'}), 500
 
-
 @app.route('/admin/posts/save', methods=['POST'])
 @login_required
 @moderator_or_admin_required
 def save_post():
     post_id = request.form.get('post_id')
-    
-    # --- START: autoflush FIX ---
     if post_id:
         post = Post.query.get_or_404(post_id)
     else:
         post = Post(author_id=current_user.id)
-    
-    # Set title first, as it's needed for the slug
     post.title = request.form.get('title')
-    
-    # Now create the slug BEFORE adding a new post to the session
     post.slug = create_slug(post.title, Post, post.id)
-    
-    # If it's a new post, now is the safe time to add it to the session
     if not post_id:
         db.session.add(post)
-    # --- END: autoflush FIX ---
-    
-    # Sanitize the content from the rich text editor before saving
     raw_content = request.form.get('content')
     post.content = sanitize_html(raw_content)
-
     post.meta_title = request.form.get('meta_title')
     post.meta_description = request.form.get('meta_description')
     post.status = request.form.get('status')
-    
-    # --- REVISED CATEGORY LOGIC ---
     category_name = request.form.get('category_name', '').strip()
     if category_name:
         category = Category.query.filter(func.lower(Category.name) == func.lower(category_name)).first()
@@ -1426,7 +1314,6 @@ def save_post():
         post.category = category
     else:
         post.category = None
-
     pub_date_str = request.form.get('pub_date')
     if pub_date_str:
         try:
@@ -1435,7 +1322,6 @@ def save_post():
             flash('Invalid date format. Please use YYYY-MM-DD HH:MM.', 'error')
     else:
         post.pub_date = datetime.utcnow()
-
     tags_json = request.form.get('tags', '[]')
     tag_names = [item['value'] for item in json.loads(tags_json)]
     post.tags.clear()
@@ -1445,7 +1331,6 @@ def save_post():
             tag = Tag(name=name)
             db.session.add(tag)
         post.tags.append(tag)
-
     if 'featured_image' in request.files:
         file = request.files['featured_image']
         if file and file.filename != '' and allowed_file(file.filename):
@@ -1455,7 +1340,6 @@ def save_post():
                 flash(f'Featured image file size exceeds the limit of {MAX_FILE_SIZE // (1024*1024)}MB.', 'error')
                 return redirect(request.referrer or url_for('post_editor', post_id=post.id))
             file.seek(0)
-
             try:
                 img = Image.open(file)
                 img.verify()
@@ -1463,15 +1347,12 @@ def save_post():
             except UnidentifiedImageError:
                 flash('The uploaded file is not a valid image.', 'error')
                 return redirect(request.referrer or url_for('post_editor', post_id=post.id))
-            
             filename = secure_filename(f"{int(datetime.utcnow().timestamp())}-{file.filename}")
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             post.featured_image = filename
-    
     db.session.commit()
     flash(f'Post "{post.title}" saved successfully!', 'success')
     return redirect(url_for('manage_posts'))
-
 
 @app.route('/admin/posts/delete/<int:post_id>', methods=['POST'])
 @login_required
@@ -1492,7 +1373,6 @@ def bulk_post_action():
     if not action or not post_ids:
         flash('No action or posts selected.', 'error')
         return redirect(url_for('manage_posts'))
-
     posts = Post.query.filter(Post.id.in_(post_ids)).all()
     if action == 'delete':
         for post in posts:
@@ -1502,7 +1382,6 @@ def bulk_post_action():
         for post in posts:
             post.status = action
         flash(f'Status changed to "{action}" for {len(posts)} posts.', 'success')
-    
     db.session.commit()
     return redirect(url_for('manage_posts'))
 
@@ -1531,7 +1410,6 @@ def manage_categories():
             flash('Category created.', 'success')
         db.session.commit()
         return redirect(url_for('manage_categories'))
-        
     categories = Category.query.order_by(Category.name).all()
     return render_template('admin/manage_categories.html', categories=categories)
 
@@ -1548,7 +1426,6 @@ def delete_category(category_id):
         flash('Category deleted.', 'success')
     return redirect(url_for('manage_categories'))
 
-# --- PUBLIC BLOG ROUTES (UPDATED & FIXED) ---
 @app.route('/blog')
 def blog_list():
     page = request.args.get('page', 1, type=int)
@@ -1571,34 +1448,22 @@ def view_post(slug):
             is_preview = True
         else:
             return "Post not found", 404
-    
-    # Increment view count if it's a real view by a non-author
     if post.status == 'published' and (not current_user.is_authenticated or current_user.id != post.author_id):
         post.views = (post.views or 0) + 1
         db.session.commit()
-
-    # --- START: NEW LOGIC FOR READ TIME & TABLE OF CONTENTS ---
     soup = BeautifulSoup(post.content, 'html.parser')
-    
-    # 1. Calculate Read Time
     text_content = soup.get_text()
     word_count = len(text_content.split())
-    read_time = max(1, round(word_count / 200)) # Assumes 200 WPM reading speed
-
-    # 2. Generate Table of Contents and add IDs to headings
+    read_time = max(1, round(word_count / 200))
     toc = []
     headings = soup.find_all(['h2', 'h3'])
     for heading in headings:
         heading_text = heading.get_text()
-        slug = re.sub(r'[^\w\s-]', '', heading_text).strip().lower()
-        heading_id = re.sub(r'[\s_-]+', '-', slug)
+        slug_id = re.sub(r'[^\w\s-]', '', heading_text).strip().lower()
+        heading_id = re.sub(r'[\s_-]+', '-', slug_id)
         heading['id'] = heading_id
         toc.append({'id': heading_id, 'text': heading_text, 'level': heading.name})
-
-    # Updated content with IDs in headings
     updated_content = str(soup)
-    # --- END: NEW LOGIC ---
-        
     return render_template('post.html', post=post, is_preview=is_preview, 
                            read_time=read_time, toc=toc, content=updated_content)
 
@@ -1606,10 +1471,10 @@ def view_post(slug):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    # Load debug status from environment variable
     DEBUG_MODE = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=DEBUG_MODE)
+
+# --- END OF FINAL, COMPLETE app.py FILE ---
