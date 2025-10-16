@@ -521,9 +521,38 @@ def extract_all_images_from_html(soup: BeautifulSoup, base_url: str) -> Set[str]
             if (url := match.group(1).strip("'\"")) and not url.startswith('data:image'):
                 if len(full_url := urljoin(base_url, url)) < 2048: image_urls.add(full_url)
     return image_urls
-def extract_css_background_images(driver: webdriver.Chrome) -> Set[str]:
-    script = "const u=new Set;return document.querySelectorAll('*').forEach(e=>{const t=window.getComputedStyle(e);if(t.backgroundImage&&'none'!==t.backgroundImage){const n=t.backgroundImage.match(/url\\(\"?(.+?)\"?\\)/);n&&n[1]&&!n[1].startsWith('data:image')&&u.add(n[1])}}),Array.from(u);"
-    return {urljoin(driver.current_url, url) for url in driver.execute_script(script)}
+# --- REPLACE THE OLD FUNCTION WITH THIS ---
+def extract_css_background_images(soup: BeautifulSoup, base_url: str) -> Set[str]:
+    image_urls: Set[str] = set()
+    
+    # First, find images in inline style attributes
+    for element in soup.select('[style*="background-image"]'):
+        if isinstance(style := element.get('style'), str) and (match := re.search(r'url\((.*?)\)', style)):
+            if (url := match.group(1).strip("'\"")) and not url.startswith('data:image'):
+                if len(full_url := urljoin(base_url, url)) < 2048:
+                    image_urls.add(full_url)
+
+    # Next, find linked stylesheets and parse them
+    for link in soup.find_all('link', rel='stylesheet', href=True):
+        if isinstance(href := link.get('href'), str):
+            css_url = urljoin(base_url, href)
+            try:
+                css_response = requests.get(css_url, timeout=10)
+                css_response.raise_for_status()
+                # Find all url() declarations in the CSS content
+                urls_in_css = re.findall(r'url\((.*?)\)', css_response.text)
+                for url in urls_in_css:
+                    clean_url = url.strip("'\"")
+                    if not clean_url.startswith(('data:image', '#')):
+                         # CSS URLs are relative to the CSS file itself
+                        full_url = urljoin(css_url, clean_url)
+                        if len(full_url) < 2048:
+                            image_urls.add(full_url)
+            except requests.RequestException as e:
+                print(f"Could not fetch or parse CSS file: {css_url}. Reason: {e}")
+                continue
+                
+    return image_urls
 def extract_fonts_from_google_links(soup: BeautifulSoup) -> List[str]:
     found_fonts: Set[str] = set()
     for link in soup.find_all('link', href=True):
@@ -689,7 +718,7 @@ async def extract_assets_from_page_async(url: str, options: Dict[str, Any]) -> T
 
         # The rest of the extraction logic can now run on the perfect HTML
         if options.get('extract_images'):
-            images = extract_all_images_from_html(soup, url)
+            images = extract_all_images_from_html(soup, url).union(extract_css_background_images(soup, url))
 
         if options.get('extract_fonts') or options.get('extract_colors'):
             # Getting computed styles is still possible
