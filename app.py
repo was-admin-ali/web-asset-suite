@@ -10,17 +10,11 @@ from authlib.integrations.flask_client import OAuth
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 import re
+import asyncio
+from pyppeteer import launch
 from urllib.parse import urljoin, unquote, urlparse, parse_qs
 import traceback
 import time
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, WebDriverException
 import webcolors
 from PIL import Image, UnidentifiedImageError
 import io
@@ -650,74 +644,97 @@ def get_clustered_color_palette(color_data: Dict[str, float], threshold: float =
     if primary := [c['hex'] for c in final_sorted[:8]]: color_groups["Primary Palette"] = primary
     if secondary := [c['hex'] for c in final_sorted[8:24]]: color_groups["Secondary Colors"] = secondary
     return color_groups
-def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
-    print(f"Analyzing page: {url}")
-    
-    # --- START: FIX ---
-    # Create a unique temporary directory for this specific browser session.
-    # This prevents conflicts when multiple users run the tool at the same time.
-    temp_dir = tempfile.TemporaryDirectory()
-    # --- END: FIX ---
-
-    chrome_options = Options()
-    chrome_options.binary_location = "/usr/bin/google-chrome"
-    service = ChromeService(executable_path='/usr/local/bin/chromedriver')
-    
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1200")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-    
-    # --- START: FIX ---
-    # Add the argument to tell Chrome to use our new unique directory.
-    chrome_options.add_argument(f"--user-data-dir={temp_dir.name}")
-    # --- END: FIX ---
-
-    driver = None
+# THIS REPLACES YOUR OLD FUNCTION COMPLETELY
+async def extract_assets_from_page_async(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
+    print(f"Analyzing page using Enhanced Hybrid Method: {url}")
+    browser = None
     try:
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        driver.get(url)
-        try:
-            WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-        except TimeoutException:
-            print("Page took too long to load.")
-            return set(), [], {}
+        # Launch the headless browser. The 'args' are crucial for running on a server.
+        browser = await launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+            ]
+        )
+        page = await browser.newPage()
+        await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 30000})
 
+        # --- THIS IS THE ENHANCEMENT THAT FIXES THE SCROLLING PROBLEM ---
         if options.get('extract_images'):
             print("Scrolling to trigger lazy-loading...")
-            if isinstance(total_h := driver.execute_script("return document.body.scrollHeight"), (int, float)) and isinstance(view_h := driver.execute_script("return window.innerHeight"), (int, float)) and view_h > 0:
-                for i in range(0, int(total_h), int(view_h)):
-                    driver.execute_script(f"window.scrollTo(0, {i + view_h * 0.8});")
-                    time.sleep(0.4)
-            time.sleep(1.0)
+            await page.evaluate('''
+                async () => {
+                    await new Promise((resolve) => {
+                        let totalHeight = 0;
+                        const distance = 100;
+                        const timer = setInterval(() => {
+                            const scrollHeight = document.body.scrollHeight;
+                            window.scrollBy(0, distance);
+                            totalHeight += distance;
+                            if (totalHeight >= scrollHeight) {
+                                clearInterval(timer);
+                                resolve();
+                            }
+                        }, 100);
+                    });
+                }
+            ''')
+            # Wait a moment for any final images to load after scrolling
+            await asyncio.sleep(2)
+        # --- END OF SCROLLING ENHANCEMENT ---
 
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        # Get the final, fully-rendered HTML content
+        final_html = await page.content()
+        soup = BeautifulSoup(final_html, 'html.parser')
+
         images, fonts, colors = set(), [], {}
 
+        # The rest of the extraction logic can now run on the perfect HTML
         if options.get('extract_images'):
-            images = extract_all_images_from_html(soup, driver.current_url).union(extract_css_background_images(driver))
+            images = extract_all_images_from_html(soup, url)
 
         if options.get('extract_fonts') or options.get('extract_colors'):
-            assets = get_computed_assets_from_selenium(driver)
+            # Getting computed styles is still possible
+            assets = await page.evaluate('''() => {
+                const elements = document.querySelectorAll('*:not(script):not(style):not(link):not(meta)');
+                const fontFamilies = new Set();
+                const colorsByArea = {};
+                elements.forEach(el => {
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    const area = rect.width * rect.height;
+                    if (area < 1) return;
+                    if (style.fontFamily) fontFamilies.add(style.fontFamily);
+                    ['color', 'backgroundColor'].forEach(prop => {
+                        const c = style[prop];
+                        if (c && c !== 'rgba(0, 0, 0, 0)') {
+                            colorsByArea[c] = (colorsByArea[c] || 0) + area;
+                        }
+                    });
+                });
+                return { fonts: Array.from(fontFamilies), colors: colorsByArea };
+            }''')
+
             if options.get('extract_colors'):
                 colors = assets.get('colors', {})
+
             if options.get('extract_fonts'):
-                is_adobe_site = detect_adobe_fonts_usage(soup)
+                is_adobe_site = 'use.typekit.net' in final_html
                 google_link_fonts = extract_fonts_from_google_links(soup)
                 computed_fonts = assets.get('fonts', [])
-                fonts = process_processing(computed_fonts, google_link_fonts, is_adobe_site)
+                fonts = process_fonts(computed_fonts, google_link_fonts, is_adobe_site)
         
         return images, fonts, colors
 
     finally:
-        if driver:
-            print("Closing browser...")
-            driver.quit()
-        # The temporary directory and all its contents will be automatically deleted here
-        temp_dir.cleanup()
+        if browser:
+            await browser.close()
+
+# We need a small wrapper to run the async function in our Flask route
+def extract_assets_from_page(url: str, options: Dict[str, Any]) -> Tuple[Set[str], List[Dict[str, str]], Dict[str, float]]:
+    return asyncio.run(extract_assets_from_page_async(url, options))
 
     
 FlaskResponse = Union[Response, Tuple[Union[str, Response], int]]
