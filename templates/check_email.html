@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Check Your Email - Web Asset Suite{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="static-content-section auth-section">
+        <div class="static-content-box" style="max-width: 500px; text-align: center;">
+            <h3>Please Check Your Email</h3>
+            <p style="color: var(--text-secondary);">
+                We have sent a confirmation link to your email address.
+                <br>
+                <strong>Please click the link in the email to activate your account and complete your sign-up.</strong>
+            </p>
+            <div style="margin-top: 30px;">
+                <a href="{{ url_for('login') }}" class="btn btn-primary" style="width: 100%; padding: 15px;">Back to Login</a>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

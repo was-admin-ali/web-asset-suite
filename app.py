@@ -797,7 +797,6 @@ def google_login():
     redirect_uri = "https://webassetsuite.com/login/google/callback"
     return oauth.google.authorize_redirect(redirect_uri)
 
-# --- THIS IS THE NEW, CORRECTED FUNCTION ---
 @app.route('/login/google/callback')
 def google_auth_callback():
     try:
@@ -816,40 +815,49 @@ def google_auth_callback():
 
     if user:
         # --- LOGIC FOR EXISTING USER ---
-        # If the user exists, check their status and log them in
+        if not user.confirmed:
+            flash('Your account is not confirmed. Please check your email for a confirmation link.', 'error')
+            return redirect(url_for('login'))
         if user.status != 'active':
-            flash('Your account is not active. Please check your email for a confirmation link or contact support.', 'error')
+            flash('Your account is not active. Please contact support.', 'error')
             return redirect(url_for('login'))
         
         login_user(user, remember=True)
         return redirect(url_for('home'))
     else:
         # --- LOGIC FOR NEW USER ---
-        # Create a new, unconfirmed user and send a confirmation email
         new_user = User(
             email=user_email,
             first_name=user_info.get('given_name'),
             last_name=user_info.get('family_name'),
             confirmed=False,
-            status='pending'  # Set status to pending
+            status='pending'
         )
         try:
             db.session.add(new_user)
             db.session.commit()
             
-            # Generate and send the confirmation email (same as in the standard register route)
             token = s.dumps(user_email, salt='email-confirm-salt')
             confirm_url = url_for('confirm_email', token=token, _external=True)
+            
+            # --- THIS IS THE CRITICAL FIX ---
             html = render_template('email/confirm_account.html', confirm_url=confirm_url)
+            # --- END OF CRITICAL FIX ---
+            
             send_email(user_email, "Please confirm your email", html)
 
-            flash('A confirmation email has been sent to your email address. Please check your inbox to activate your account.', 'success')
-            return redirect(url_for('login')) # Redirect to login, DO NOT log them in
+            # --- REDIRECT TO THE NEW PAGE ---
+            return redirect(url_for('check_email_page'))
+
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"An error occurred during Google registration for email {user_email}: {e}")
             flash('Could not create account due to a server issue. Please try again later.', 'error')
             return redirect(url_for('register'))
+
+@app.route('/check-email')
+def check_email_page():
+    return render_template('check_email.html')
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
