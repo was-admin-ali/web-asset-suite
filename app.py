@@ -792,6 +792,10 @@ def logout():
     logout_user()
     return redirect(url_for('home'))
 
+def google_authorize():
+    redirect_uri = url_for('google_auth_callback', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)    
+
 @app.route('/login/google')
 def login_with_google():
     session['google_oauth_intent'] = 'login'
