@@ -793,9 +793,19 @@ def logout():
     return redirect(url_for('home'))
 
 @app.route('/login/google')
-def google_login():
-    redirect_uri = "https://webassetsuite.com/login/google/callback"
+def google_authorize():
+    redirect_uri = url_for('google_auth_callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
+
+@app.route('/login/google')
+def login_with_google():
+    session['google_oauth_intent'] = 'login'
+    return google_authorize()
+
+@app.route('/register/google')
+def register_with_google():
+    session['google_oauth_intent'] = 'register'
+    return google_authorize()
 
 # --- THIS IS THE FINAL, CORRECTED FUNCTION ---
 @app.route('/login/google/callback')
@@ -808,58 +818,66 @@ def google_auth_callback():
             return redirect(url_for('login'))
     except Exception as e:
         flash('An error occurred during Google authentication. Please try again.', 'error')
-        print(f"OAuth Error: {e}")
+        app.logger.error(f"OAuth Error: {e}")
         return redirect(url_for('login'))
-        
+    
+    # Get the user's original intent from the session
+    intent = session.pop('google_oauth_intent', 'login') # Default to 'login' if not found
+    
     user_email = user_info['email']
     user = User.query.filter_by(email=user_email).first()
 
-    if user:
-        # --- CORRECT LOGIC FOR EXISTING USER ---
-        # The user already exists, so this is a LOGIN attempt.
-        
-        # Security check: ensure their account is active.
-        if not user.confirmed:
-            flash('Your account is not confirmed. Please check your email for a confirmation link.', 'error')
-            return redirect(url_for('login'))
-        if user.status != 'active':
-            flash('Your account is not active. Please contact support.', 'error')
-            return redirect(url_for('login'))
-        
-        # Log them in and send them to the home page.
-        login_user(user, remember=True)
-        flash('You have been successfully logged in.', 'success')
-        return redirect(url_for('home'))
-    else:
-        # --- CORRECT LOGIC FOR NEW USER ---
-        # The user does not exist, so this is a SIGN-UP attempt.
-        
-        # Create a new, unconfirmed user.
-        new_user = User(
-            email=user_email,
-            first_name=user_info.get('given_name'),
-            last_name=user_info.get('family_name'),
-            confirmed=False, # Must be confirmed via email
-            status='pending'
-        )
-        try:
-            db.session.add(new_user)
-            db.session.commit()
+    if intent == 'login':
+        # --- USER STARTED FROM THE LOGIN PAGE ---
+        if user:
+            # User exists, this is correct. Log them in.
+            if not user.confirmed:
+                flash('Your account is not confirmed. Please check your email for a confirmation link.', 'error')
+                return redirect(url_for('login'))
+            if user.status != 'active':
+                flash('Your account is not active. Please contact support.', 'error')
+                return redirect(url_for('login'))
             
-            # Generate and send the confirmation email.
-            token = s.dumps(user_email, salt='email-confirm-salt')
-            confirm_url = url_for('confirm_email', token=token, _external=True)
-            html = render_template('email/confirm_account.html', confirm_url=confirm_url)
-            send_email(user_email, "Please confirm your email", html)
-
-            # Redirect them to the page that says "Check Your Email".
-            return redirect(url_for('check_email_page'))
-
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"An error occurred during Google registration for email {user_email}: {e}")
-            flash('Could not create account due to a server issue. Please try again later.', 'error')
+            login_user(user, remember=True)
+            return redirect(url_for('home'))
+        else:
+            # User does NOT exist. This is an error. Send them to register.
+            flash("You don't have an account with that email. Please create one.", 'error')
             return redirect(url_for('register'))
+
+    elif intent == 'register':
+        # --- USER STARTED FROM THE REGISTER PAGE ---
+        if user:
+            # User already exists. This is an error. Send them to log in.
+            flash('An account with this email already exists. Please log in.', 'error')
+            return redirect(url_for('login'))
+        else:
+            # User does NOT exist. This is correct. Create account and send email.
+            new_user = User(
+                email=user_email,
+                first_name=user_info.get('given_name'),
+                last_name=user_info.get('family_name'),
+                confirmed=False,
+                status='pending'
+            )
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                
+                token = s.dumps(user_email, salt='email-confirm-salt')
+                confirm_url = url_for('confirm_email', token=token, _external=True)
+                html = render_template('email/confirm_account.html', confirm_url=confirm_url)
+                send_email(user_email, "Please confirm your email", html)
+
+                return redirect(url_for('check_email_page'))
+            except Exception as e:
+                db.session.rollback()
+                app.logger.error(f"An error occurred during Google registration: {e}")
+                flash('Could not create account due to a server issue. Please try again.', 'error')
+                return redirect(url_for('register'))
+    
+    # Fallback in case something goes wrong
+    return redirect(url_for('login'))
 
 @app.route('/check-email')
 def check_email_page():
