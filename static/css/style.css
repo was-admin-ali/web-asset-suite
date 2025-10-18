@@ -950,12 +950,12 @@ section {
     height: 100vh;
     z-index: 1500;
     transform: translateX(100%);
-    transition: transform 0.3s ease-in-out, visibility 0.3s; /* MODIFIED */
-    visibility: hidden; /* ADDED */
+    transition: transform 0.3s ease-in-out, visibility 0.3s;
+    visibility: hidden;
 }
 .mobile-nav.is-open {
     transform: translateX(0);
-    visibility: visible; /* ADDED */
+    visibility: visible;
 }
 .mobile-nav-link {
     font-size: 1.5rem;
@@ -968,7 +968,13 @@ section {
 .hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
-body.no-scroll { overflow: hidden; }
+
+/* START: NEW SCROLL LOCKING RULE */
+html.no-scroll {
+    overflow: hidden;
+}
+/* END: NEW SCROLL LOCKING RULE */
+
 
 /* --- 9. RESPONSIVE DESIGN --- */
 @media (max-width: 992px) {
