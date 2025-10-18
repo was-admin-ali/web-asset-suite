@@ -23,7 +23,10 @@
 }
 /* --- 2. GLOBAL STYLES & RESETS --- */
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { 
+    scroll-behavior: smooth; 
+    overflow-x: hidden; /* ADDED: Prevents horizontal scroll on the root element */
+}
 body {
     font-family: 'Manrope', sans-serif;
     background-color: var(--bg-primary);
@@ -32,7 +35,7 @@ body {
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden; /* ADDED: This is the definitive fix */
+    overflow-x: hidden; /* ADDED: Ensures body also prevents horizontal scroll */
 }
 
 .container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
@@ -969,8 +972,6 @@ section {
 .hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
-
-/* --- CORRECTED SCROLL LOCKING RULE --- */
 body.no-scroll {
     overflow: hidden;
 }
