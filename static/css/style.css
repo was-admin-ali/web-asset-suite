@@ -993,17 +993,17 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
-    /* --- START: Sticky Mobile Header --- */
-    .main-header {
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        padding: 10px 0; /* Tighter padding for mobile */
-        width: 100%;
-        background-color: color-mix(in srgb, var(--bg-primary) 85%, transparent);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-    }
+/* --- START: Sticky Mobile Header --- */
+.main-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 10px 15px; /* MODIFIED: Added horizontal padding for mobile */
+    width: 100%;
+    background-color: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
     .main-header .container {
         box-shadow: none; /* Remove shadow when sticky */
     }
