@@ -1137,6 +1137,29 @@ body.no-scroll {
     max-width: 200px; /* More specific selector to ensure override */
 }
 /* --- END: Reduce Illustration Size on Mobile --- */
+
+/* --- START: Mobile Header Icon Size Adjustments --- */
+    .logo a {
+        height: 34px; /* Reduced from 40px */
+    }
+    .theme-toggle-btn {
+        width: 38px;  /* Reduced from 44px */
+        height: 38px; /* Reduced from 44px */
+    }
+    .theme-toggle-btn img {
+        width: 20px;  /* Reduced from 24px */
+        height: 20px; /* Reduced from 24px */
+    }
+    .hamburger-btn {
+        width: 26px;  /* Reduced from 30px */
+        height: 26px; /* Reduced from 30px */
+    }
+    .hamburger-btn span {
+        width: 26px;  /* Match parent width */
+        height: 2.5px; /* Make lines slightly thinner */
+    }
+    /* --- END: Mobile Header Icon Size Adjustments --- */
+
 }
 /* --- 10. COMPRESSOR PAGE STYLES --- */
 .compressor-container {
