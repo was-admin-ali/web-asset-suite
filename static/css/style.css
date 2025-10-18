@@ -32,7 +32,6 @@ body {
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden; /* ADDED: This prevents horizontal scrolling */
 }
 
 .container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
@@ -951,10 +950,12 @@ section {
     height: 100vh;
     z-index: 1500;
     transform: translateX(100%);
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, visibility 0.3s; /* MODIFIED */
+    visibility: hidden; /* ADDED */
 }
 .mobile-nav.is-open {
     transform: translateX(0);
+    visibility: visible; /* ADDED */
 }
 .mobile-nav-link {
     font-size: 1.5rem;
