@@ -232,9 +232,19 @@ p { line-height: 1.6; margin: 1em 0 0 0; }
     background-color: var(--bg-primary);
 }
 
-.moon-icon { display: none; }
-[data-theme="dark"] .sun-icon { display: none; }
-[data-theme="dark"] .moon-icon { display: block; }
+.sun-icon, .moon-icon {
+    position: absolute;
+    transition: opacity 0.3s ease-in-out;
+}
+.moon-icon {
+    opacity: 0;
+}
+[data-theme="dark"] .sun-icon {
+    opacity: 0;
+}
+[data-theme="dark"] .moon-icon {
+    opacity: 1;
+}
 
 /* --- 5. CONTENT SECTIONS --- */
 section {
