@@ -133,7 +133,7 @@ function initMobileNav() {
     const toggleMenu = () => {
         hamburgerBtn.classList.toggle('is-active');
         mobileNav.classList.toggle('is-open');
-        document.documentElement.classList.toggle('no-scroll'); // MODIFIED: Target the <html> element
+        document.body.classList.toggle('no-scroll'); // CORRECTED: This now correctly targets the body
         hamburgerBtn.setAttribute('aria-expanded', hamburgerBtn.classList.contains('is-active'));
     };
     hamburgerBtn.addEventListener('click', toggleMenu);

@@ -32,6 +32,7 @@ body {
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden; /* ADDED: This is the definitive fix */
 }
 
 .container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
@@ -969,11 +970,10 @@ section {
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
 
-/* START: NEW SCROLL LOCKING RULE */
-html.no-scroll {
+/* --- CORRECTED SCROLL LOCKING RULE --- */
+body.no-scroll {
     overflow: hidden;
 }
-/* END: NEW SCROLL LOCKING RULE */
 
 
 /* --- 9. RESPONSIVE DESIGN --- */
