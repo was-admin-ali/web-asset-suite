@@ -1514,7 +1514,7 @@ def view_post(slug):
         heading_id = re.sub(r'[\s_-]+', '-', slug_id)
         heading['id'] = heading_id
         toc.append({'id': heading_id, 'text': heading_text, 'level': heading.name})
-    updated_content = str(soup)
+    updated_content = soup.decode_contents()
     return render_template('post.html', post=post, is_preview=is_preview, 
                            read_time=read_time, toc=toc, content=updated_content)
 
