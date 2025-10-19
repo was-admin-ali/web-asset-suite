@@ -1807,6 +1807,7 @@ body.no-scroll {
 
 @media (max-width: 768px) {
     .contrast-checker-layout {
+        grid-template-columns: 1fr;
         gap: 30px;
     }
     .contrast-controls {
