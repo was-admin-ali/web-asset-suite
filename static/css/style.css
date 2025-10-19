@@ -3635,17 +3635,12 @@ body.no-scroll {
 
 /* --- 38. FINAL MOBILE LAYOUT OVERRIDE FIXES --- */
 @media (max-width: 992px) {
-    /* This ensures the contrast checker stacks vertically on mobile */
-    .contrast-checker-layout {
-        grid-template-columns: 1fr;
-    }
-
-    /* This ensures the blog post sidebar and main content stack on mobile */
+    .contrast-checker-layout,
     .post-layout {
         grid-template-columns: 1fr;
     }
     .post-sidebar {
-        position: static; /* Disables sticky positioning on mobile */
+        position: static;
         margin-bottom: 40px;
     }
 }
