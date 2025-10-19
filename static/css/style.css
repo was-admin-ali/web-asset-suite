@@ -1003,6 +1003,22 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
+    /* --- START: VERIFIED MOBILE FIX for Contrast Checker Layout --- */
+    .contrast-checker-layout {
+        grid-template-columns: 1fr;
+    }
+    /* --- END: VERIFIED MOBILE FIX --- */
+
+    /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
+    .post-layout {
+        grid-template-columns: 1fr;
+    }
+    .post-sidebar {
+        position: static;
+        margin-bottom: 40px;
+    }
+    /* --- END: VERIFIED MOBILE FIX --- */
+
 /* --- START: Sticky Mobile Header --- */
 .main-header {
     position: sticky;
@@ -1418,6 +1434,10 @@ body.no-scroll {
     color: var(--text-secondary);
     font-size: 1rem;
     line-height: 1.7;
+    /* --- START: MOBILE FIX for overflowing text --- */
+    overflow-wrap: break-word;
+    word-wrap: break-word; /* Legacy fallback */
+    /* --- END: MOBILE FIX --- */
 }
 
 .static-content-box p a {
@@ -3579,7 +3599,6 @@ body.no-scroll {
 .post-author-box small {
     color: var(--text-secondary);
 }
-
 /* --- 36. QUILLJS DARK THEME FIX --- */
 
 /* Change the main icon color to be visible on a dark background */
