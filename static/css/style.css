@@ -3633,7 +3633,7 @@ body.no-scroll {
     transform: translateY(0);
 }
 
-/* --- 38. MOBILE LAYOUT OVERRIDE FIXES --- */
+/* --- 38. FINAL MOBILE LAYOUT OVERRIDE FIXES --- */
 @media (max-width: 992px) {
     /* This ensures the contrast checker stacks vertically on mobile */
     .contrast-checker-layout {
