@@ -1003,13 +1003,13 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
-    /* --- START: VERIFIED MOBILE FIX for Contrast Checker Layout --- */
+    /* --- START: MOBILE FIX for Contrast Checker Layout --- */
     .contrast-checker-layout {
         grid-template-columns: 1fr;
     }
-    /* --- END: VERIFIED MOBILE FIX --- */
+    /* --- END: MOBILE FIX --- */
 
-    /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
+    /* --- START: MOBILE FIX for Post Page Layout --- */
     .post-layout {
         grid-template-columns: 1fr;
     }
@@ -1017,7 +1017,7 @@ body.no-scroll {
         position: static;
         margin-bottom: 40px;
     }
-    /* --- END: VERIFIED MOBILE FIX --- */
+    /* --- END: MOBILE FIX --- */
 
 /* --- START: Sticky Mobile Header --- */
 .main-header {
@@ -3158,13 +3158,6 @@ body.no-scroll {
     }
     .post-header-image {
         order: -1; /* Move image above text on mobile */
-    }
-    .post-layout {
-        grid-template-columns: 1fr;
-    }
-    .post-sidebar {
-        position: static;
-        margin-bottom: 40px;
     }
 }
 @media (max-width: 768px) {
