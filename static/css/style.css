@@ -2621,7 +2621,14 @@ body.no-scroll {
 @media (max-width: 1200px) {
     .admin-section-grid {
         grid-template-columns: 1fr; /* Stack columns on smaller screens */
+        gap: 30px;   
     }
+    .contrast-controls {
+        padding: 20px;
+    }
+    .tool-container {
+        padding: 40px 20px;
+    }    
 }
 
 /* --- 21. ADMIN ANALYTICS COMPONENTS --- */
