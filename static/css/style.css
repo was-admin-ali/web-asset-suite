@@ -1,5 +1,3 @@
-style.css
-
 /* --- 1. MODERN TECH THEME - COLOR & LAYOUT VARIABLES --- */
 :root { /* Dark Mode */
     --bg-primary: #111111;
@@ -3063,10 +3061,6 @@ body.no-scroll {
     gap: 50px;
     align-items: flex-start;
 }
-.post-sidebar {
-    position: sticky;
-    top: 120px; /* Adjust based on header height */
-}
 .sidebar-widget {
     margin-bottom: 40px;
 }
@@ -3328,7 +3322,7 @@ body.no-scroll {
 }
 .post-sidebar {
     position: sticky;
-    top: 120px; /* Adjust based on header height */
+    top: 40px;
 }
 
 /* Correct Widget Styling */
@@ -3338,6 +3332,70 @@ body.no-scroll {
     border-radius: 12px;
     padding: 25px;
     margin-bottom: 25px;
+}
+.sidebar-widget h4 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Correct TOC List Styling */
+.toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+.toc-list li {
+    border-bottom: 1px solid var(--border-color);
+}
+.toc-list li:last-child {
+    border-bottom: none;
+}
+.toc-list a {
+    display: block;
+    padding: 10px 0;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+.toc-list a.toc-link-h3 {
+    padding-left: 15px;
+}
+.toc-list a:hover {
+    color: var(--text-primary);
+}
+.toc-list a.active {
+    color: var(--accent-primary);
+    font-weight: 700;
+}
+
+/* Correct Share Icons Styling */
+.share-icons {
+    display: flex;
+    gap: 10px;
+}
+.share-icon-link {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    font-weight: 700;
+    transition: all 0.2s;
+}
+.share-icon-link:hover {
+    background-color: var(--accent-primary);
+    color: var(--text-on-accent);
+    border-color: var(--accent-primary);
 }
 
 /* --- 31. ADMIN TAG BADGE STYLES --- */
