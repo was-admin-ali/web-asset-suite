@@ -1170,6 +1170,23 @@ body.no-scroll {
     }
     /* --- END: Mobile Header Icon Size Adjustments --- */
 
+    /* --- START: Mobile Palette Checker Fix --- */
+    .palette-color-row .color-input-wrapper {
+        padding: 3px 8px; /* Reduce horizontal padding */
+    }
+    .palette-color-row .color-input-swatch {
+        width: 32px;   /* Reduce swatch size */
+        height: 32px;
+    }
+    .palette-color-row .remove-color-btn {
+        width: 40px;   /* Reduce button size */
+        height: 40px;
+        flex-shrink: 0; /* Prevent the button from shrinking */
+    }
+    .palette-color-row .color-input-hex {
+        font-size: 1rem; /* Slightly smaller font for the hex code */
+    }
+    /* --- END: Mobile Palette Checker Fix --- */
 }
 /* --- 10. COMPRESSOR PAGE STYLES --- */
 .compressor-container {
@@ -1607,40 +1624,14 @@ body.no-scroll {
     height: 20px;
 }
 
-/* --- START: REVISED CONTRAST CHECKER STYLES --- */
+/* --- 14. CONTRAST CHECKER PAGE STYLES --- */
 .contrast-checker-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 40px;
     text-align: left;
+    align-items: stretch;
 }
-.contrast-preview {
-    margin-top: 10px;
-}
-@media (min-width: 993px) {
-    .contrast-checker-layout {
-        display: grid;
-        grid-template-columns: 300px 1fr;
-        grid-template-rows: auto 1fr;
-        grid-template-areas:
-            "controls preview"
-            "controls inputs";
-        gap: 40px;
-        align-items: stretch;
-    }
-    .contrast-controls {
-        grid-area: controls;
-    }
-    .contrast-preview {
-        grid-area: preview;
-        margin-top: 0;
-    }
-    .color-inputs-container {
-        grid-area: inputs;
-    }
-}
-/* --- END: REVISED CONTRAST CHECKER STYLES --- */
-
 .contrast-controls {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
@@ -1650,6 +1641,11 @@ body.no-scroll {
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+.preview-and-controls-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 .color-inputs-container {
     background-color: var(--bg-secondary);
@@ -1827,6 +1823,9 @@ body.no-scroll {
 }
 
 @media (max-width: 768px) {
+    .contrast-checker-layout {
+        gap: 30px;
+    }
     .contrast-controls {
         padding: 20px;
     }
