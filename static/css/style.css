@@ -3059,7 +3059,6 @@ body.no-scroll {
     display: grid;
     grid-template-columns: 250px 1fr;
     gap: 50px;
-    align-items: flex-start;
 }
 .post-sidebar {
     position: sticky;
@@ -3662,9 +3661,4 @@ body.no-scroll {
         position: static; /* Disables sticky positioning on mobile */
         margin-bottom: 40px;
     }
-}
-
-.sidebar-sticky-content {
-    position: sticky;
-    top: 120px; /* Adjust this value to match your sticky header's height */
 }
