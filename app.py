@@ -67,7 +67,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
 @app.errorhandler(413)
 @app.errorhandler(RequestEntityTooLarge)
@@ -76,7 +76,7 @@ def handle_request_entity_too_large(e):
     # The compressor and Quill uploader are AJAX, so we check their paths specifically.
     if request.path in [url_for('compress_image'), url_for('upload_image_for_editor')]:
         limit_mb = app.config.get('MAX_CONTENT_LENGTH', MAX_FILE_SIZE) // (1024 * 1024)
-        return jsonify({'error': f'File size exceeds the limit of {limit_mb}MB.'}), 413
+        return jsonify({'error': f'File size exceeds the server limit of {limit_mb}MB.'}), 413
 
     # Fallback for traditional form submissions (like the post editor)
     flash('The submitted data or file is too large. Please reduce the size of images or content.', 'error')
