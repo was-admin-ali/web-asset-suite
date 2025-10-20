@@ -1003,11 +1003,11 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
-    /* --- START: VERIFIED MOBILE FIX for Contrast Checker Layout --- */
+    /* --- START: MOBILE FIX for Contrast Checker Layout --- */
     .contrast-checker-layout {
         grid-template-columns: 1fr;
     }
-    /* --- END: VERIFIED MOBILE FIX --- */
+    /* --- END: MOBILE FIX --- */
 
     /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
     .post-layout {
@@ -1140,12 +1140,16 @@ body.no-scroll {
     .advanced-footer .footer-social {
         margin-top: 10px;
     }
+
+    /* --- START: MOBILE FIX for Contrast Checker Layout --- */
     .contrast-checker-layout {
         gap: 30px;
     }
     .contrast-controls {
         padding: 20px;
     }
+    /* --- END: MOBILE FIX --- */
+    
     .tools-showcase-section,
     .all-in-one-grid {
         padding: 22px 20px;
@@ -1819,18 +1823,6 @@ body.no-scroll {
     border-width: 2px;
     border-style: solid;
     transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s;
-}
-
-@media (max-width: 768px) {
-    .contrast-checker-layout {
-        gap: 30px;
-    }
-    .contrast-controls {
-        padding: 20px;
-    }
-    .tool-container {
-        padding: 40px 20px;
-    }
 }
 
 /* --- 15. PALETTE CONTRAST CHECKER STYLES --- */
