@@ -1010,6 +1010,55 @@ function initScrollAnimations() {
     });
 }
 
+// --- NEW: Scroll Animation Observer ---
+function initScrollAnimations() {
+    const sections = document.querySelectorAll('.fade-in-section');
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.1 // Trigger when 10% of the element is visible
+    });
+
+    sections.forEach(section => {
+        observer.observe(section);
+    });
+}
+
+// --- START: NEW JAVASCRIPT-CONTROLLED STICKY SIDEBAR ---
+function initStickySidebar() {
+    const sidebar = document.querySelector('.post-sidebar');
+    const stickyContent = document.querySelector('.sidebar-sticky-content');
+    
+    // Only run if the sidebar exists on the page
+    if (!sidebar || !stickyContent) {
+        return;
+    }
+
+    // The 'top' value from your CSS, which acts as an offset for the header
+    const topOffset = 120; 
+    
+    // Get the initial top position of the sidebar relative to the page
+    const sidebarTop = sidebar.getBoundingClientRect().top + window.scrollY;
+
+    const handleScroll = () => {
+        // Check if the user has scrolled past the sidebar's original top position
+        if (window.scrollY > sidebarTop - topOffset) {
+            stickyContent.classList.add('is-sticky');
+        } else {
+            stickyContent.classList.remove('is-sticky');
+        }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+}
+// --- END: NEW JAVASCRIPT-CONTROLLED STICKY SIDEBAR ---
 
 // --- MAIN EXECUTION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1028,4 +1077,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initTocScrollspy();
     initUsageLimitModal(); // NEW
     initScrollAnimations();
+    initStickySidebar(); // <-- ADD THIS LINE
 });
