@@ -1003,6 +1003,12 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
+    /* --- START: VERIFIED MOBILE FIX for Contrast Checker Layout --- */
+    .contrast-checker-layout {
+        grid-template-columns: 1fr;
+    }
+    /* --- END: VERIFIED MOBILE FIX --- */
+
     /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
     .post-layout {
         grid-template-columns: 1fr;
@@ -1815,11 +1821,6 @@ body.no-scroll {
     transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s;
 }
 
-@media (max-width: 992px) {
-    .contrast-checker-layout {
-        grid-template-columns: 1fr;
-    }
-}
 @media (max-width: 768px) {
     .contrast-checker-layout {
         gap: 30px;
