@@ -3322,7 +3322,7 @@ body.no-scroll {
     display: grid;
     grid-template-columns: 250px 1fr; /* Fixed sidebar width, flexible content */
     gap: 50px;
-    align-items: start; /* Aligns items to the top, required for sticky to work correctly */
+    align-items: start; /* THIS IS THE KEY CHANGE */
 }
 .post-sidebar {
     position: sticky;
@@ -3401,7 +3401,6 @@ body.no-scroll {
     color: var(--text-on-accent);
     border-color: var(--accent-primary);
 }
-
 /* --- 31. ADMIN TAG BADGE STYLES --- */
 .tag-badge {
     display: inline-block;

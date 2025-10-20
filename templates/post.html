@@ -41,28 +41,26 @@
 
         <!-- Two-Column Layout -->
         <div class="post-layout">
-            <!-- Left Sidebar -->
+<!-- Left Sidebar -->
             <aside class="post-sidebar">
-                <div class="sidebar-sticky-content">
-                    {% if toc %}
-                    <div class="sidebar-widget">
-                        <h4>JUMP TO SECTION</h4>
-                        <ul class="toc-list">
-                            {% for item in toc %}
-                            <li><a href="#{{ item.id }}" class="toc-link-{{ item.level }}">{{ item.text | truncate(28) }}</a></li>
-                            {% endfor %}
-                        </ul>
+                {% if toc %}
+                <div class="sidebar-widget">
+                    <h4>JUMP TO SECTION</h4>
+                    <ul class="toc-list">
+                        {% for item in toc %}
+                        <li><a href="#{{ item.id }}" class="toc-link-{{ item.level }}">{{ item.text | truncate(28) }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                <div class="sidebar-widget share-widget-transparent">
+                    <h4>SHARE TO</h4>
+                    <!-- START: FUNCTIONAL SHARE LINKS -->
+                    <div class="share-icons">
+                        <a href="https://twitter.com/intent/tweet?url={{ url_for('view_post', slug=post.slug, _external=True) }}&text={{ post.title|urlencode }}" target="_blank" rel="noopener noreferrer" class="share-icon-link">X</a>
+                        <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ url_for('view_post', slug=post.slug, _external=True) }}" target="_blank" rel="noopener noreferrer" class="share-icon-link">in</a>
                     </div>
-                    {% endif %}
-                    <div class="sidebar-widget share-widget-transparent">
-                        <h4>SHARE TO</h4>
-                        <!-- START: FUNCTIONAL SHARE LINKS -->
-                        <div class="share-icons">
-                            <a href="https://twitter.com/intent/tweet?url={{ url_for('view_post', slug=post.slug, _external=True) }}&text={{ post.title|urlencode }}" target="_blank" rel="noopener noreferrer" class="share-icon-link">X</a>
-                            <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ url_for('view_post', slug=post.slug, _external=True) }}" target="_blank" rel="noopener noreferrer" class="share-icon-link">in</a>
-                        </div>
-                        <!-- END: FUNCTIONAL SHARE LINKS -->
-                    </div>
+                    <!-- END: FUNCTIONAL SHARE LINKS -->
                 </div>
             </aside>
 
