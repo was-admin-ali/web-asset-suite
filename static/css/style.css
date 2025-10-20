@@ -1003,22 +1003,6 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
-    /* --- START: MOBILE FIX for Contrast Checker Layout --- */
-    .contrast-checker-layout {
-        grid-template-columns: 1fr;
-    }
-    /* --- END: MOBILE FIX --- */
-
-    /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
-    .post-layout {
-        grid-template-columns: 1fr;
-    }
-    .post-sidebar {
-        position: static;
-        margin-bottom: 40px;
-    }
-    /* --- END: VERIFIED MOBILE FIX --- */
-
 /* --- START: Sticky Mobile Header --- */
 .main-header {
     position: sticky;
@@ -1140,16 +1124,12 @@ body.no-scroll {
     .advanced-footer .footer-social {
         margin-top: 10px;
     }
-
-    /* --- START: MOBILE FIX for Contrast Checker Layout --- */
     .contrast-checker-layout {
         gap: 30px;
     }
     .contrast-controls {
         padding: 20px;
     }
-    /* --- END: MOBILE FIX --- */
-    
     .tools-showcase-section,
     .all-in-one-grid {
         padding: 22px 20px;
@@ -1627,14 +1607,40 @@ body.no-scroll {
     height: 20px;
 }
 
-/* --- 14. CONTRAST CHECKER PAGE STYLES --- */
+/* --- START: REVISED CONTRAST CHECKER STYLES --- */
 .contrast-checker-layout {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
     text-align: left;
-    align-items: stretch;
 }
+.contrast-preview {
+    margin-top: 10px;
+}
+@media (min-width: 993px) {
+    .contrast-checker-layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        grid-template-rows: auto 1fr;
+        grid-template-areas:
+            "controls preview"
+            "controls inputs";
+        gap: 40px;
+        align-items: stretch;
+    }
+    .contrast-controls {
+        grid-area: controls;
+    }
+    .contrast-preview {
+        grid-area: preview;
+        margin-top: 0;
+    }
+    .color-inputs-container {
+        grid-area: inputs;
+    }
+}
+/* --- END: REVISED CONTRAST CHECKER STYLES --- */
+
 .contrast-controls {
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
@@ -1644,11 +1650,6 @@ body.no-scroll {
     display: flex;
     flex-direction: column;
     justify-content: center;
-}
-.preview-and-controls-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
 }
 .color-inputs-container {
     background-color: var(--bg-secondary);
@@ -1823,6 +1824,15 @@ body.no-scroll {
     border-width: 2px;
     border-style: solid;
     transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s;
+}
+
+@media (max-width: 768px) {
+    .contrast-controls {
+        padding: 20px;
+    }
+    .tool-container {
+        padding: 40px 20px;
+    }
 }
 
 /* --- 15. PALETTE CONTRAST CHECKER STYLES --- */
@@ -3146,13 +3156,6 @@ body.no-scroll {
     .post-header-image {
         order: -1; /* Move image above text on mobile */
     }
-    .post-layout {
-        grid-template-columns: 1fr;
-    }
-    .post-sidebar {
-        position: static;
-        margin-bottom: 40px;
-    }
 }
 @media (max-width: 768px) {
     .post-header-content h1 {
@@ -3646,4 +3649,16 @@ body.no-scroll {
 .fade-in-section.is-visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* --- 38. FINAL MOBILE LAYOUT OVERRIDE FIXES --- */
+@media (max-width: 992px) {
+    /* This ensures the blog post sidebar and main content stack on mobile */
+    .post-layout {
+        grid-template-columns: 1fr;
+    }
+    .post-sidebar {
+        position: static; /* Disables sticky positioning on mobile */
+        margin-bottom: 40px;
+    }
 }
