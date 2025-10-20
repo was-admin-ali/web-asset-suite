@@ -3663,3 +3663,8 @@ body.no-scroll {
         margin-bottom: 40px;
     }
 }
+
+.sidebar-sticky-content {
+    position: sticky;
+    top: 120px; /* Adjust this value to match your sticky header's height */
+}
