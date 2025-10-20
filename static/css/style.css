@@ -25,7 +25,6 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { 
     scroll-behavior: smooth; 
-    overflow-x: hidden; /* ADDED: Prevents horizontal scroll on the root element */
 }
 body {
     font-family: 'Manrope', sans-serif;
@@ -35,7 +34,6 @@ body {
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden; /* ADDED: Ensures body also prevents horizontal scroll */
 }
 
 .container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
@@ -3401,6 +3399,7 @@ body.no-scroll {
     color: var(--text-on-accent);
     border-color: var(--accent-primary);
 }
+
 /* --- 31. ADMIN TAG BADGE STYLES --- */
 .tag-badge {
     display: inline-block;
