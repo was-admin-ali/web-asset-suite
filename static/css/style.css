@@ -3059,9 +3059,9 @@ body.no-scroll {
     display: grid;
     grid-template-columns: 250px 1fr;
     gap: 50px;
-    align-items: flex-start; /* <--- This line is the problem */
+    align-items: flex-start;
 }
-.post-sidebar .sidebar-sticky-content {
+.post-sidebar {
     position: sticky;
     top: 120px; /* Adjust based on header height */
 }
@@ -3324,7 +3324,10 @@ body.no-scroll {
     gap: 50px;
     align-items: flex-start;
 }
-
+.post-sidebar {
+    position: sticky;
+    top: 120px; /* Adjust based on header height */
+}
 
 /* Correct Widget Styling */
 .sidebar-widget {
