@@ -1,3 +1,5 @@
+style.css
+
 /* --- 1. MODERN TECH THEME - COLOR & LAYOUT VARIABLES --- */
 :root { /* Dark Mode */
     --bg-primary: #111111;
@@ -3324,14 +3326,10 @@ body.no-scroll {
     gap: 50px;
     align-items: flex-start;
 }
-
-/* START: CORRECTED SECTION - The empty .post-sidebar rule is now removed */
-.sidebar-sticky-content {
+.post-sidebar {
     position: sticky;
-    top: 100px; /* Adjust this value to control the distance from the top */
+    top: 120px; /* Adjust based on header height */
 }
-/* END: CORRECTED SECTION */
-
 
 /* Correct Widget Styling */
 .sidebar-widget {
@@ -3341,6 +3339,7 @@ body.no-scroll {
     padding: 25px;
     margin-bottom: 25px;
 }
+
 /* --- 31. ADMIN TAG BADGE STYLES --- */
 .tag-badge {
     display: inline-block;
