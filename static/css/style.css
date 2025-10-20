@@ -1003,12 +1003,6 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
-    /* --- START: VERIFIED MOBILE FIX for Contrast Checker Layout --- */
-    .contrast-checker-layout {
-        grid-template-columns: 1fr;
-    }
-    /* --- END: VERIFIED MOBILE FIX --- */
-
     /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
     .post-layout {
         grid-template-columns: 1fr;
