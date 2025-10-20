@@ -3325,16 +3325,9 @@ body.no-scroll {
     align-items: flex-start;
 }
 .post-sidebar {
-    /* The direct child .sidebar-sticky-content is now the sticky element */
-}
-
-/* START: MODIFICATION FOR STICKY SIDEBAR */
-.sidebar-sticky-content {
     position: sticky;
     top: 120px; /* Adjust based on header height */
 }
-/* END: MODIFICATION FOR STICKY SIDEBAR */
-
 
 /* Correct Widget Styling */
 .sidebar-widget {
