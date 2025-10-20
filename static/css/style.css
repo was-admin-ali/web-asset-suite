@@ -1003,6 +1003,22 @@ body.no-scroll {
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
 
+    /* --- START: VERIFIED MOBILE FIX for Contrast Checker Layout --- */
+    .contrast-checker-layout {
+        grid-template-columns: 1fr;
+    }
+    /* --- END: VERIFIED MOBILE FIX --- */
+
+    /* --- START: VERIFIED MOBILE FIX for Post Page Layout --- */
+    .post-layout {
+        grid-template-columns: 1fr;
+    }
+    .post-sidebar {
+        position: static;
+        margin-bottom: 40px;
+    }
+    /* --- END: VERIFIED MOBILE FIX --- */
+
 /* --- START: Sticky Mobile Header --- */
 .main-header {
     position: sticky;
@@ -1124,6 +1140,9 @@ body.no-scroll {
     .advanced-footer .footer-social {
         margin-top: 10px;
     }
+    .contrast-checker-layout {
+        gap: 30px;
+    }
     .contrast-controls {
         padding: 20px;
     }
@@ -1167,31 +1186,6 @@ body.no-scroll {
     }
     /* --- END: Mobile Header Icon Size Adjustments --- */
 
-    /* --- START: REVISED Mobile Palette Checker Fix --- */
-    .palette-color-row {
-        gap: 10px;
-    }
-    .remove-color-btn {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%; /* Make button circular */
-        flex-shrink: 0;
-    }
-    .color-input-swatch {
-        width: 34px;
-        height: 34px;
-    }
-    .color-input-hex {
-        font-size: 1rem;
-    }
-    .palette-buttons {
-        flex-direction: column; /* Stack buttons vertically */
-        gap: 12px;
-    }
-    .palette-buttons .btn {
-        width: 100%; /* Make buttons full-width */
-    }
-    /* --- END: REVISED Mobile Palette Checker Fix --- */
 }
 /* --- 10. COMPRESSOR PAGE STYLES --- */
 .compressor-container {
@@ -1632,8 +1626,8 @@ body.no-scroll {
 /* --- 14. CONTRAST CHECKER PAGE STYLES --- */
 .contrast-checker-layout {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 30px;
+    grid-template-columns: 300px 1fr;
+    gap: 40px;
     text-align: left;
     align-items: stretch;
 }
@@ -1827,7 +1821,15 @@ body.no-scroll {
     transition: background-color 0.3s, color 0.3s, border-color 0.3s, transform 0.2s;
 }
 
+@media (max-width: 992px) {
+    .contrast-checker-layout {
+        grid-template-columns: 1fr;
+    }
+}
 @media (max-width: 768px) {
+    .contrast-checker-layout {
+        gap: 30px;
+    }
     .contrast-controls {
         padding: 20px;
     }
@@ -3157,6 +3159,13 @@ body.no-scroll {
     .post-header-image {
         order: -1; /* Move image above text on mobile */
     }
+    .post-layout {
+        grid-template-columns: 1fr;
+    }
+    .post-sidebar {
+        position: static;
+        margin-bottom: 40px;
+    }
 }
 @media (max-width: 768px) {
     .post-header-content h1 {
@@ -3650,16 +3659,4 @@ body.no-scroll {
 .fade-in-section.is-visible {
     opacity: 1;
     transform: translateY(0);
-}
-
-/* --- 38. FINAL MOBILE LAYOUT OVERRIDE FIXES --- */
-@media (max-width: 992px) {
-    /* This ensures the blog post sidebar and main content stack on mobile */
-    .post-layout {
-        grid-template-columns: 1fr;
-    }
-    .post-sidebar {
-        position: static; /* Disables sticky positioning on mobile */
-        margin-bottom: 40px;
-    }
 }

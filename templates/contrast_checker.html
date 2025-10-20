@@ -10,7 +10,7 @@
             <p class="tool-subtitle">Instantly verify that your text and background colors meet accessibility standards.</p>
 
             <div class="contrast-checker-layout">
-                <!-- Section 1: Results (Displays First on Mobile) -->
+                <!-- Left Side: Results -->
                 <div class="contrast-controls">
                     <div class="contrast-results">
                          <div class="ratio-display-wrapper">
@@ -33,32 +33,35 @@
                     </div>
                 </div>
                 
-                <!-- Section 2: Preview Panel (Displays Second on Mobile) -->
-                <div id="contrast-preview" class="contrast-preview">
-                    <h3>Example Heading</h3>
-                    <p>This is a paragraph of body text. It's designed to give you a real-time preview of how your chosen color combination will look.</p>
-                    <button id="preview-button" class="btn">Example Button</button>
-                </div>
-
-                <!-- Section 3: Color Inputs (Displays Third on Mobile) -->
-                <div class="color-inputs-container">
-                    <div class="color-input-group">
-                        <label for="text-color-hex">Text Color</label>
-                        <div class="color-input-wrapper">
-                            <input type="color" id="text-color-swatch" class="color-input-swatch" value="#FFFFFF">
-                            <input type="text" id="text-color-hex" class="color-input-hex" value="#FFFFFF" maxlength="7">
-                        </div>
+                <!-- Right Side: Preview & Controls Wrapper -->
+                <div class="preview-and-controls-wrapper">
+                    <!-- Preview Panel -->
+                    <div id="contrast-preview" class="contrast-preview">
+                        <h3>Example Heading</h3>
+                        <p>This is a paragraph of body text. It's designed to give you a real-time preview of how your chosen color combination will look.</p>
+                        <button id="preview-button" class="btn">Example Button</button>
                     </div>
 
-                    <button id="swap-colors-btn" aria-label="Swap text and background colors">
-                        <img src="{{ url_for('static', filename='img/Switch button.svg') }}" alt="Swap Colors">
-                    </button>
+                    <!-- Color Inputs Panel -->
+                    <div class="color-inputs-container">
+                        <div class="color-input-group">
+                            <label for="text-color-hex">Text Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="text-color-swatch" class="color-input-swatch" value="#FFFFFF">
+                                <input type="text" id="text-color-hex" class="color-input-hex" value="#FFFFFF" maxlength="7">
+                            </div>
+                        </div>
 
-                    <div class="color-input-group">
-                        <label for="bg-color-hex">Background Color</label>
-                        <div class="color-input-wrapper">
-                            <input type="color" id="bg-color-swatch" class="color-input-swatch" value="#000000">
-                            <input type="text" id="bg-color-hex" class="color-input-hex" value="#000000" maxlength="7">
+                        <button id="swap-colors-btn" aria-label="Swap text and background colors">
+                            <img src="{{ url_for('static', filename='img/Switch button.svg') }}" alt="Swap Colors">
+                        </button>
+
+                        <div class="color-input-group">
+                            <label for="bg-color-hex">Background Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="bg-color-swatch" class="color-input-swatch" value="#000000">
+                                <input type="text" id="bg-color-hex" class="color-input-hex" value="#000000" maxlength="7">
+                            </div>
                         </div>
                     </div>
                 </div>
