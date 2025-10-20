@@ -1851,6 +1851,7 @@ body.no-scroll {
 .palette-color-row .color-input-wrapper {
     flex-grow: 1;
     padding: 5px 8px 5px 5px; /* MODIFIED: Adjusted padding for new button */
+    width: 10px;
 }
 .palette-buttons {
     display: flex;
