@@ -1170,23 +1170,6 @@ body.no-scroll {
     }
     /* --- END: Mobile Header Icon Size Adjustments --- */
 
-    /* --- START: Mobile Palette Checker Fix --- */
-    .palette-color-row .color-input-wrapper {
-        padding: 3px 8px; /* Reduce horizontal padding */
-    }
-    .palette-color-row .color-input-swatch {
-        width: 32px;   /* Reduce swatch size */
-        height: 32px;
-    }
-    .palette-color-row .remove-color-btn {
-        width: 40px;   /* Reduce button size */
-        height: 40px;
-        flex-shrink: 0; /* Prevent the button from shrinking */
-    }
-    .palette-color-row .color-input-hex {
-        font-size: 1rem; /* Slightly smaller font for the hex code */
-    }
-    /* --- END: Mobile Palette Checker Fix --- */
 }
 /* --- 10. COMPRESSOR PAGE STYLES --- */
 .compressor-container {
@@ -1824,6 +1807,7 @@ body.no-scroll {
 
 @media (max-width: 768px) {
     .contrast-checker-layout {
+        grid-template-columns: 1fr;
         gap: 30px;
     }
     .contrast-controls {
@@ -3652,6 +3636,11 @@ body.no-scroll {
 
 /* --- 38. FINAL MOBILE LAYOUT OVERRIDE FIXES --- */
 @media (max-width: 992px) {
+    /* This ensures the contrast checker stacks vertically on mobile */
+    .contrast-checker-layout {
+        grid-template-columns: 1fr;
+    }
+
     /* This ensures the blog post sidebar and main content stack on mobile */
     .post-layout {
         grid-template-columns: 1fr;
