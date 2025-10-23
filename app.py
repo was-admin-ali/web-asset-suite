@@ -1026,6 +1026,7 @@ def handle_extraction_request() -> FlaskResponse:
             return jsonify({'error': 'The domain name could not be found. Please check the URL.'}), 500
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
 
+# --- START: EDITED COMPRESS IMAGE FUNCTION ---
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
@@ -1034,32 +1035,69 @@ def compress_image() -> FlaskResponse:
 
     if 'image' not in request.files or not (file := request.files['image']).filename:
         return jsonify({'error': 'No image file provided'}), 400
+        
     try:
-        quality = max(1, min(100, int(request.form.get('quality', 75))))
+        target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
         original_bytes = file.read()
         original_size = len(original_bytes)
-        if original_size > MAX_FILE_SIZE: return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
+
+        if original_size > MAX_FILE_SIZE:
+            return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
+
         image = Image.open(io.BytesIO(original_bytes))
         if image.width > MAX_IMAGE_DIMENSIONS[0] or image.height > MAX_IMAGE_DIMENSIONS[1]:
             return jsonify({'error': f'Image dimensions exceed {MAX_IMAGE_DIMENSIONS[0]}x{MAX_IMAGE_DIMENSIONS[1]}px'}), 400
-        out_buffer = io.BytesIO()
+
+        target_size = original_size * (1 - (target_reduction / 100))
         ext = os.path.splitext(file.filename)[1].lower()
-        if ext in ['.jpg', '.jpeg']:
-            image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
-            mimetype, ext_out = 'image/jpeg', 'jpg'
-        elif ext == '.png':
-            quantized = image.convert("RGBA").quantize(colors=int(2 + (254 * (quality / 100))), dither=Image.Dither.FLOYDSTEINBERG)
-            quantized.save(out_buffer, format='PNG', optimize=True)
-            mimetype, ext_out = 'image/png', 'png'
-        else: return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
-        compressed_bytes = out_buffer.getvalue()
-        final_bytes, final_size, success = (original_bytes, original_size, False) if len(compressed_bytes) >= original_size else (compressed_bytes, len(compressed_bytes), True)
         
-        if success:
-             track_usage('compressor', metadata={
+        final_bytes = None
+        best_effort_bytes = None
+        mimetype, ext_out = '', ''
+
+        if ext in ['.jpg', '.jpeg']:
+            mimetype, ext_out = 'image/jpeg', 'jpg'
+            # Iteratively find the best quality setting for the target size
+            for quality in range(95, 10, -5):
+                out_buffer = io.BytesIO()
+                image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
+                best_effort_bytes = out_buffer.getvalue()
+                if len(best_effort_bytes) <= target_size:
+                    final_bytes = best_effort_bytes
+                    break
+            if final_bytes is None:
+                final_bytes = best_effort_bytes
+
+        elif ext == '.png':
+            mimetype, ext_out = 'image/png', 'png'
+            # Try lossless first
+            lossless_buffer = io.BytesIO()
+            image.save(lossless_buffer, format='PNG', optimize=True)
+            best_effort_bytes = lossless_buffer.getvalue()
+
+            if len(best_effort_bytes) <= target_size or target_reduction <= 30:
+                final_bytes = best_effort_bytes
+            else:
+                # If lossless isn't enough for a high target, use lossy quantization
+                lossy_image = image.convert("RGBA").quantize(colors=256, dither=Image.Dither.FLOYDSTEINBERG)
+                lossy_buffer = io.BytesIO()
+                lossy_image.save(lossy_buffer, format='PNG', optimize=True)
+                final_bytes = lossy_buffer.getvalue()
+                # If even lossy is bigger, revert to the best lossless result
+                if len(final_bytes) > len(best_effort_bytes):
+                    final_bytes = best_effort_bytes
+        else:
+            return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
+
+        final_size = len(final_bytes)
+        success = final_size <= target_size
+
+        if final_size < original_size:
+            track_usage('compressor', metadata={
                 'file_type': ext.replace('.', '').upper(),
                 'original_size': original_size,
-                'compressed_size': final_size
+                'compressed_size': final_size,
+                'target_reduction': target_reduction
             })
 
         filename = f"compressed_{os.path.splitext(file.filename)[0]}.{ext_out}"
@@ -1068,9 +1106,11 @@ def compress_image() -> FlaskResponse:
         resp.headers['X-Compressed-Size'] = str(final_size)
         resp.headers['X-Compression-Successful'] = str(success).lower()
         return resp
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': f'An error occurred: {e}'}), 500
+# --- END: EDITED COMPRESS IMAGE FUNCTION ---
 
 @app.route('/download-image')
 @login_required

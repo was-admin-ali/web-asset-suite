@@ -3661,3 +3661,78 @@ body.no-scroll {
         margin-bottom: 40px;
     }
 }
+
+/* --- 39. IMAGE COMPARISON SLIDER --- */
+.comparison-container {
+    text-align: center;
+    margin-bottom: 40px;
+}
+.img-comp-container {
+    position: relative;
+    height: 500px; /* Adjust as needed */
+    max-width: 1000px; /* Adjust as needed */
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+.img-comp-img {
+    position: absolute;
+    width: auto;
+    height: auto;
+    overflow: hidden;
+}
+.img-comp-img img {
+    display: block;
+    /* vertical-align: middle;  <-- REMOVED THIS LINE */
+    width: 1000px;
+    height: 500px;
+    max-width: none;
+    object-fit: cover;
+}
+.img-comp-overlay {
+    height: 100%;
+    width: 50%; /* Start at 50% */
+}
+.img-comp-slider {
+    position: absolute;
+    z-index: 9;
+    cursor: ew-resize;
+    /* The slider's size */
+    width: 40px;
+    height: 40px;
+    background-color: var(--text-on-accent);
+    border: 3px solid var(--accent-primary);
+    opacity: 0.8;
+    border-radius: 50%;
+    /* Position the slider in the middle */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+.img-comp-slider:hover {
+    opacity: 1;
+}
+.img-comp-slider:before, .img-comp-slider:after {
+    content: '';
+    position: absolute;
+    height: 200vh; /* Make lines very long */
+    top: -100vh;
+    width: 3px;
+    background-color: var(--accent-primary);
+}
+.slider-arrow {
+    color: var(--accent-primary);
+    font-weight: 800;
+    font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+    .img-comp-container, .img-comp-img img {
+        height: 300px;
+    }
+}

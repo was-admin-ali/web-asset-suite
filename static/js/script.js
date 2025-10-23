@@ -414,7 +414,7 @@ function initExtractorTool() {
 }
 
 
-// --- IMAGE COMPRESSOR PAGE LOGIC ---
+// --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
     const compressForm = document.getElementById('compress-form');
     if (!compressForm) return;
@@ -432,9 +432,9 @@ function initImageCompressorPage() {
     const compressedPreview = document.getElementById('compressed-preview');
     const downloadBtn = document.getElementById('download-btn');
     const compressionStatusMessage = document.getElementById('compression-status-message');
-    const qualityContainer = document.getElementById('quality-container');
-    const qualitySlider = document.getElementById('quality-slider');
-    const qualityValue = document.getElementById('quality-value');
+    const reductionContainer = document.getElementById('reduction-container');
+    const reductionSlider = document.getElementById('reduction-slider');
+    const reductionValue = document.getElementById('reduction-value');
 
     let originalFile = null;
 
@@ -447,30 +447,25 @@ function initImageCompressorPage() {
         if (imageInput.files.length > 0) {
             originalFile = imageInput.files[0];
             const fileName = originalFile.name;
-            const fileNameLower = fileName.toLowerCase();
             fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
             resultsContainer.classList.add('hidden');
             errorContainer.classList.add('hidden');
-            if (qualityContainer) {
-                if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png')) {
-                    qualityContainer.style.display = 'flex';
-                } else {
-                    qualityContainer.style.display = 'none';
-                }
+            if (reductionContainer) {
+                reductionContainer.style.display = 'flex';
             }
         }
     });
     
-    if (qualitySlider && qualityValue) {
+    if (reductionSlider && reductionValue) {
         const updateSliderAppearance = () => {
-            qualityValue.textContent = `${qualitySlider.value}%`;
-            const min = qualitySlider.min || 0;
-            const max = qualitySlider.max || 100;
-            const value = qualitySlider.value;
+            reductionValue.textContent = `${reductionSlider.value}%`;
+            const min = reductionSlider.min || 0;
+            const max = reductionSlider.max || 100;
+            const value = reductionSlider.value;
             const fillPercent = ((value - min) / (max - min)) * 100;
-            qualitySlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
+            reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
         };
-        qualitySlider.addEventListener('input', updateSliderAppearance);
+        reductionSlider.addEventListener('input', updateSliderAppearance);
         updateSliderAppearance();
     }
 
@@ -488,17 +483,13 @@ function initImageCompressorPage() {
 
     compressForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-
         if (!originalFile) {
             showCompressError('Please select an image to compress.');
             return;
         }
-
         const formData = new FormData();
         formData.append('image', originalFile);
-        if (qualityContainer && qualityContainer.style.display === 'flex') {
-            formData.append('quality', qualitySlider.value);
-        }
+        formData.append('target_reduction', reductionSlider.value);
 
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
@@ -507,13 +498,11 @@ function initImageCompressorPage() {
         
         try {
             const response = await fetch('/compress-image', { method: 'POST', body: formData });
-
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 if(response.status === 403) showUsageLimitModal();
                 throw new Error(errorData.error || `Compression failed: Server responded with status ${response.status}`);
             }
-
             const blob = await response.blob();
             const originalSize = response.headers.get('X-Original-Size');
             const compressedSize = response.headers.get('X-Compressed-Size');
@@ -524,21 +513,24 @@ function initImageCompressorPage() {
 
             const reduction = ((originalSize - compressedSize) / originalSize) * 100;
             reductionPercentEl.textContent = `${Math.max(0, reduction).toFixed(1)}%`;
-            reductionPercentEl.style.color = compressionSuccessful ? 'var(--accent-secondary)' : 'var(--text-secondary)';
-
             if (!compressionSuccessful && compressionStatusMessage) {
-                compressionStatusMessage.textContent = 'Could not reduce file size further.';
+                compressionStatusMessage.textContent = 'Could not meet target. Max compression applied.';
             }
 
-            originalPreview.src = URL.createObjectURL(originalFile);
-            compressedPreview.src = URL.createObjectURL(blob);
-            downloadBtn.href = compressedPreview.src;
+            // Create object URLs for the previews
+            const originalUrl = URL.createObjectURL(originalFile);
+            const compressedUrl = URL.createObjectURL(blob);
+
+            originalPreview.src = originalUrl;
+            compressedPreview.src = compressedUrl;
+            downloadBtn.href = compressedUrl;
             
             const disposition = response.headers.get('Content-Disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
             downloadBtn.download = filenameMatch ? filenameMatch[1] : 'compressed-image';
             
             resultsContainer.classList.remove('hidden');
+            initComparisons(); // Initialize the comparison slider
 
         } catch (error) {
             showCompressError(error.message);
@@ -547,6 +539,72 @@ function initImageCompressorPage() {
         }
     });
 }
+// --- END: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
+
+// --- START: NEW IMAGE COMPARISON SLIDER LOGIC ---
+function initComparisons() {
+    const containers = document.getElementsByClassName("img-comp-container");
+    // For each container, create a slider and add event listeners
+    for (let i = 0; i < containers.length; i++) {
+        compareImages(containers[i]);
+    }
+
+    function compareImages(container) {
+        let clicked = 0;
+        const overlay = container.getElementsByClassName("img-comp-overlay")[0];
+        
+        // Remove existing slider if it exists to prevent duplicates
+        const existingSlider = container.getElementsByClassName("img-comp-slider")[0];
+        if (existingSlider) {
+            existingSlider.remove();
+        }
+
+        // Create slider
+        const slider = document.createElement("DIV");
+        slider.setAttribute("class", "img-comp-slider");
+        slider.innerHTML = "<span class='slider-arrow'>&#10231;</span>";
+        overlay.parentElement.insertBefore(slider, overlay);
+
+        // Positioning function
+        const slideReady = (e) => {
+            e.preventDefault();
+            clicked = 1;
+            window.addEventListener("mousemove", slideMove);
+            window.addEventListener("touchmove", slideMove);
+        };
+        const slideFinish = () => {
+            clicked = 0;
+        };
+        const slideMove = (e) => {
+            if (clicked == 0) return false;
+            let pos = getCursorPos(e);
+            if (pos < 0) pos = 0;
+            if (pos > container.offsetWidth) pos = container.offsetWidth;
+            slide(pos);
+        };
+        const getCursorPos = (e) => {
+            e = e || window.event;
+            const a = container.getBoundingClientRect();
+            let x = e.pageX - a.left;
+            x = x - window.pageXOffset;
+            return x;
+        };
+        const slide = (x) => {
+            overlay.style.width = x + "px";
+            slider.style.left = overlay.offsetWidth - (slider.offsetWidth / 2) + "px";
+        };
+
+        // Add event listeners
+        slider.addEventListener("mousedown", slideReady);
+        window.addEventListener("mouseup", slideFinish);
+        slider.addEventListener("touchstart", slideReady);
+        window.addEventListener("touchend", slideFinish);
+        
+        // Set initial position
+        slide(container.offsetWidth / 2);
+    }
+}
+// --- END: NEW IMAGE COMPARISON SLIDER LOGIC ---
 
 function initContrastChecker() {
     const contrastPage = document.getElementById('contrast-checker-page');

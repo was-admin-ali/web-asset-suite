@@ -18,13 +18,15 @@
                         <span class="file-type-info">PNG or JPG (Max 10MB)</span>
                     </div>
                 </div>
-                <div class="quality-slider-container" id="quality-container">
-                    <label for="quality-slider">Compression Quality:</label>
+                <!-- START: EDITED SLIDER SECTION -->
+                <div class="quality-slider-container" id="reduction-container">
+                    <label for="reduction-slider">Target Size Reduction:</label>
                     <div class="slider-wrapper">
-                        <input type="range" id="quality-slider" min="10" max="100" value="99">
-                        <span id="quality-value">99%</span>
+                        <input type="range" id="reduction-slider" min="0" max="90" value="50">
+                        <span id="reduction-value">50%</span>
                     </div>
                 </div>
+                <!-- END: EDITED SLIDER SECTION -->
                 <button type="submit" id="compress-btn" class="btn btn-primary">Compress Image</button>
             </form>
         </div>
@@ -44,21 +46,27 @@
                     <span id="compressed-size"></span>
                 </div>
                 <div class="size-info reduction">
-                    <strong>Reduction:</strong>
+                    <strong>Actual Reduction:</strong>
                     <span id="reduction-percent"></span>
                     <strong id="compression-status-message" style="font-size: 0.9rem; margin-top: 5px; color: var(--text-secondary);"></strong>
                 </div>
             </div>
-            <div class="image-previews">
-                <div class="preview-box">
-                    <h3>Original</h3>
-                    <img id="original-preview" src="#" alt="Original Image Preview">
-                </div>
-                <div class="preview-box">
-                    <h3>Compressed</h3>
-                    <img id="compressed-preview" src="#" alt="Compressed Image Preview">
+            
+            <!-- START: NEW VISUAL COMPARISON SLIDER -->
+            <div class="comparison-container">
+                <h3>Visual Quality Comparison</h3>
+                <p class="tool-subtitle" style="margin-top: -5px; margin-bottom: 20px;">Slide the handle to compare the original and compressed images.</p>
+                <div class="img-comp-container">
+                    <div class="img-comp-img">
+                        <img id="original-preview" src="#" alt="Original Image Preview" width="1000" height="500">
+                    </div>
+                    <div class="img-comp-img img-comp-overlay">
+                        <img id="compressed-preview" src="#" alt="Compressed Image Preview" width="1000" height="500">
+                    </div>
                 </div>
             </div>
+            <!-- END: NEW VISUAL COMPARISON SLIDER -->
+
             <a href="#" id="download-btn" class="btn btn-primary" download>Download Compressed Image</a>
         </div>
     </section>
