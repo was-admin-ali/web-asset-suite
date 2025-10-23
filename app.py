@@ -1035,8 +1035,7 @@ def compress_image() -> FlaskResponse:
     if 'image' not in request.files or not (file := request.files['image']).filename:
         return jsonify({'error': 'No image file provided'}), 400
     try:
-        # Set the default quality to 90 to match the new front-end default
-        quality = max(1, min(100, int(request.form.get('quality', 90))))
+        quality = max(1, min(100, int(request.form.get('quality', 75))))
         original_bytes = file.read()
         original_size = len(original_bytes)
         if original_size > MAX_FILE_SIZE: return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
@@ -1046,18 +1045,11 @@ def compress_image() -> FlaskResponse:
         out_buffer = io.BytesIO()
         ext = os.path.splitext(file.filename)[1].lower()
         if ext in ['.jpg', '.jpeg']:
-            # MODIFICATION: This ensures the highest quality settings are always used for JPGs.
-            # The 'quality' param remains the primary control for the user.
             image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
             mimetype, ext_out = 'image/jpeg', 'jpg'
         elif ext == '.png':
-            # --- MODIFICATION START ---
-            # This is the correct, truly lossless method for PNGs.
-            # We map the 1-100 slider value to a 1-9 compression level for the underlying library.
-            # This controls compression *effort*, not visual quality, preserving the image perfectly.
-            compress_level = max(1, min(9, int((quality / 100) * 9)))
-            image.save(out_buffer, format='PNG', optimize=True, compress_level=compress_level)
-            # --- MODIFICATION END ---
+            quantized = image.convert("RGBA").quantize(colors=int(2 + (254 * (quality / 100))), dither=Image.Dither.FLOYDSTEINBERG)
+            quantized.save(out_buffer, format='PNG', optimize=True)
             mimetype, ext_out = 'image/png', 'png'
         else: return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
         compressed_bytes = out_buffer.getvalue()
