@@ -1,3 +1,5 @@
+# --- START OF FINAL, COMPLETE app.py FILE ---
+
 # NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid pyppeteer
 import requests
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
@@ -1032,87 +1034,32 @@ def compress_image() -> FlaskResponse:
 
     if 'image' not in request.files or not (file := request.files['image']).filename:
         return jsonify({'error': 'No image file provided'}), 400
-    
     try:
-        target_size_percent = int(request.form.get('target_size_percent', 50))
+        quality = max(1, min(100, int(request.form.get('quality', 75))))
         original_bytes = file.read()
         original_size = len(original_bytes)
-        
-        if original_size > MAX_FILE_SIZE:
-            return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
-
+        if original_size > MAX_FILE_SIZE: return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
         image = Image.open(io.BytesIO(original_bytes))
         if image.width > MAX_IMAGE_DIMENSIONS[0] or image.height > MAX_IMAGE_DIMENSIONS[1]:
             return jsonify({'error': f'Image dimensions exceed {MAX_IMAGE_DIMENSIONS[0]}x{MAX_IMAGE_DIMENSIONS[1]}px'}), 400
-        
-        target_byte_size = original_size * (target_size_percent / 100)
+        out_buffer = io.BytesIO()
         ext = os.path.splitext(file.filename)[1].lower()
-        
-        best_bytes = None
-        
-        # --- JPEG Compression Logic ---
         if ext in ['.jpg', '.jpeg']:
+            image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
             mimetype, ext_out = 'image/jpeg', 'jpg'
-            low_q, high_q = 1, 95
-            best_quality = low_q
-
-            for _ in range(8): # 8 iterations for binary search
-                if low_q > high_q: break
-                q = (low_q + high_q) // 2
-                with io.BytesIO() as buffer:
-                    image.convert('RGB').save(buffer, format='JPEG', quality=q, optimize=True, progressive=True)
-                    current_bytes = buffer.getvalue()
-                
-                if len(current_bytes) <= target_byte_size:
-                    best_bytes = current_bytes
-                    best_quality = q
-                    low_q = q + 1
-                else:
-                    high_q = q - 1
-
-        # --- PNG Compression Logic ---
         elif ext == '.png':
+            quantized = image.convert("RGBA").quantize(colors=int(2 + (254 * (quality / 100))), dither=Image.Dither.FLOYDSTEINBERG)
+            quantized.save(out_buffer, format='PNG', optimize=True)
             mimetype, ext_out = 'image/png', 'png'
-            low_c, high_c = 16, 256
-            best_colors = high_c
-
-            for _ in range(8): # 8 iterations for binary search
-                if low_c > high_c: break
-                c = (low_c + high_c) // 2
-                with io.BytesIO() as buffer:
-                    quantized = image.convert("RGBA").quantize(colors=c, dither=Image.Dither.FLOYDSTEINBERG)
-                    quantized.save(buffer, format='PNG', optimize=True)
-                    current_bytes = buffer.getvalue()
-
-                if len(current_bytes) <= target_byte_size:
-                    best_bytes = current_bytes
-                    best_colors = c
-                    low_c = c + 1
-                else:
-                    high_c = c - 1
+        else: return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
+        compressed_bytes = out_buffer.getvalue()
+        final_bytes, final_size, success = (original_bytes, original_size, False) if len(compressed_bytes) >= original_size else (compressed_bytes, len(compressed_bytes), True)
         
-        else:
-            return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
-
-        # If no compression could meet the target, use the smallest possible
-        if best_bytes is None:
-            with io.BytesIO() as buffer:
-                if ext_out == 'jpg':
-                     image.convert('RGB').save(buffer, format='JPEG', quality=1, optimize=True, progressive=True)
-                else: # png
-                    quantized = image.convert("RGBA").quantize(colors=2, dither=Image.Dither.FLOYDSTEINBERG)
-                    quantized.save(buffer, format='PNG', optimize=True)
-                best_bytes = buffer.getvalue()
-
-        final_bytes, final_size = (original_bytes, original_size) if len(best_bytes) >= original_size else (best_bytes, len(best_bytes))
-        success = final_size < original_size
-
         if success:
              track_usage('compressor', metadata={
                 'file_type': ext.replace('.', '').upper(),
                 'original_size': original_size,
-                'compressed_size': final_size,
-                'target_percent': target_size_percent
+                'compressed_size': final_size
             })
 
         filename = f"compressed_{os.path.splitext(file.filename)[0]}.{ext_out}"
@@ -1121,7 +1068,6 @@ def compress_image() -> FlaskResponse:
         resp.headers['X-Compressed-Size'] = str(final_size)
         resp.headers['X-Compression-Successful'] = str(success).lower()
         return resp
-
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': f'An error occurred: {e}'}), 500

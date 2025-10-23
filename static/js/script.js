@@ -433,63 +433,44 @@ function initImageCompressorPage() {
     const downloadBtn = document.getElementById('download-btn');
     const compressionStatusMessage = document.getElementById('compression-status-message');
     const qualityContainer = document.getElementById('quality-container');
-    const sizeSlider = document.getElementById('size-slider');
-    const sizeValue = document.getElementById('size-value');
+    const qualitySlider = document.getElementById('quality-slider');
+    const qualityValue = document.getElementById('quality-value');
 
     let originalFile = null;
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB, to match Flask config
 
     const showCompressError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
     };
 
-    const resetPrompt = () => {
-        fileUploadPrompt.innerHTML = `<svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-                        <p><strong>Click to upload</strong> or drag and drop</p>
-                        <span class="file-type-info">PNG or JPG (Max 10MB)</span>`;
-    };
-
-    const handleFile = (file) => {
-        if (file.size > MAX_FILE_SIZE) {
-            showCompressError(`File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB. Please choose a smaller file.`);
-            imageInput.value = ''; // Clear the selected file
-            originalFile = null;
-            resetPrompt();
-            return false;
-        }
-        originalFile = file;
-        const fileName = originalFile.name;
-        const fileNameLower = fileName.toLowerCase();
-        fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
-        resultsContainer.classList.add('hidden');
-        errorContainer.classList.add('hidden');
-        if (qualityContainer) {
-            if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png')) {
-                qualityContainer.style.display = 'flex';
-            } else {
-                qualityContainer.style.display = 'none';
-            }
-        }
-        return true;
-    };
-
     imageInput.addEventListener('change', () => {
         if (imageInput.files.length > 0) {
-            handleFile(imageInput.files[0]);
+            originalFile = imageInput.files[0];
+            const fileName = originalFile.name;
+            const fileNameLower = fileName.toLowerCase();
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
+            resultsContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+            if (qualityContainer) {
+                if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png')) {
+                    qualityContainer.style.display = 'flex';
+                } else {
+                    qualityContainer.style.display = 'none';
+                }
+            }
         }
     });
     
-    if (sizeSlider && sizeValue) {
+    if (qualitySlider && qualityValue) {
         const updateSliderAppearance = () => {
-            sizeValue.textContent = `${sizeSlider.value}%`;
-            const min = sizeSlider.min || 0;
-            const max = sizeSlider.max || 100;
-            const value = sizeSlider.value;
+            qualityValue.textContent = `${qualitySlider.value}%`;
+            const min = qualitySlider.min || 0;
+            const max = qualitySlider.max || 100;
+            const value = qualitySlider.value;
             const fillPercent = ((value - min) / (max - min)) * 100;
-            sizeSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
+            qualitySlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
         };
-        sizeSlider.addEventListener('input', updateSliderAppearance);
+        qualitySlider.addEventListener('input', updateSliderAppearance);
         updateSliderAppearance();
     }
 
@@ -501,11 +482,8 @@ function initImageCompressorPage() {
     fileUploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         fileUploadArea.classList.remove('is-dragover');
-        if (e.dataTransfer.files.length > 0) {
-            if (handleFile(e.dataTransfer.files[0])) {
-                imageInput.files = e.dataTransfer.files;
-            }
-        }
+        imageInput.files = e.dataTransfer.files;
+        imageInput.dispatchEvent(new Event('change'));
     });
 
     compressForm.addEventListener('submit', async (e) => {
@@ -516,15 +494,10 @@ function initImageCompressorPage() {
             return;
         }
 
-        if (originalFile.size > MAX_FILE_SIZE) {
-            showCompressError(`File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB. Please choose a smaller file.`);
-            return;
-        }
-
         const formData = new FormData();
         formData.append('image', originalFile);
         if (qualityContainer && qualityContainer.style.display === 'flex') {
-            formData.append('target_size_percent', sizeSlider.value);
+            formData.append('quality', qualitySlider.value);
         }
 
         loader.classList.remove('hidden');
