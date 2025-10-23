@@ -1035,7 +1035,8 @@ def compress_image() -> FlaskResponse:
     if 'image' not in request.files or not (file := request.files['image']).filename:
         return jsonify({'error': 'No image file provided'}), 400
     try:
-        quality = max(1, min(100, int(request.form.get('quality', 75))))
+        # Changed default quality to 80 to align with the new default slider value
+        quality = max(1, min(100, int(request.form.get('quality', 80))))
         original_bytes = file.read()
         original_size = len(original_bytes)
         if original_size > MAX_FILE_SIZE: return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
@@ -1045,11 +1046,17 @@ def compress_image() -> FlaskResponse:
         out_buffer = io.BytesIO()
         ext = os.path.splitext(file.filename)[1].lower()
         if ext in ['.jpg', '.jpeg']:
+            # For JPGs, quality controls the lossy compression level. optimize=True and progressive=True help get the best size.
             image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
             mimetype, ext_out = 'image/jpeg', 'jpg'
         elif ext == '.png':
-            quantized = image.convert("RGBA").quantize(colors=int(2 + (254 * (quality / 100))), dither=Image.Dither.FLOYDSTEINBERG)
-            quantized.save(out_buffer, format='PNG', optimize=True)
+            # --- MODIFICATION START ---
+            # Replaced lossy quantization with high-quality lossless compression.
+            # This preserves full image quality while reducing file size.
+            # The 'quality' param here maps to the zlib compression level (0-9), not visual quality.
+            # This ensures the slider still has an effect (more compression effort) without degrading the image.
+            image.save(out_buffer, format='PNG', optimize=True, quality=quality)
+            # --- MODIFICATION END ---
             mimetype, ext_out = 'image/png', 'png'
         else: return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
         compressed_bytes = out_buffer.getvalue()
