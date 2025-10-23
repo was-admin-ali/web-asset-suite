@@ -1057,22 +1057,42 @@ def compress_image() -> FlaskResponse:
 
         if ext in ['.jpg', '.jpeg']:
             mimetype, ext_out = 'image/jpeg', 'jpg'
-            # Iteratively find the best quality setting, but DO NOT go below 75
-            for quality in range(95, 74, -5): # This is the "Quality Floor"
-                out_buffer = io.BytesIO()
-                image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
-                current_bytes = out_buffer.getvalue()
+            
+            # --- START OF NEW "GRADIENT-AWARE" LOGIC ---
+            # Pass 1: High-Fidelity attempt to prevent color banding
+            high_fidelity_buffer = io.BytesIO()
+            # subsampling=0 preserves full color detail (4:4:4)
+            image.convert('RGB').save(high_fidelity_buffer, format='JPEG', quality=85, subsampling=0, optimize=True)
+            high_fidelity_bytes = high_fidelity_buffer.getvalue()
+
+            # Check if this high-quality version already meets the target
+            if len(high_fidelity_bytes) <= target_size:
+                final_bytes = high_fidelity_bytes
+                app.logger.info("High-fidelity compression met the target size.")
+            else:
+                # Pass 2: Fallback to iterative search if high-fidelity is too large
+                app.logger.info("High-fidelity was too large. Falling back to iterative compression.")
+                best_effort_bytes = high_fidelity_bytes # Start with the best quality we have
                 
-                # Always save the latest result as the best effort so far
-                best_effort_bytes = current_bytes
+                # Iteratively find the best quality setting, but DO NOT go below 75
+                for quality in range(95, 74, -5): # This is the "Quality Floor"
+                    out_buffer = io.BytesIO()
+                    # Standard subsampling is faster and often smaller
+                    image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
+                    current_bytes = out_buffer.getvalue()
+                    
+                    # Update best_effort_bytes if the current result is smaller
+                    if len(current_bytes) < len(best_effort_bytes):
+                         best_effort_bytes = current_bytes
 
-                if len(current_bytes) <= target_size:
-                    final_bytes = current_bytes
-                    break # Success, we met the target
+                    if len(current_bytes) <= target_size:
+                        final_bytes = current_bytes
+                        break # Success, we met the target
 
-            # If the loop finished and we never met the target, use the best (lowest size) result we got
-            if final_bytes is None:
-                final_bytes = best_effort_bytes
+                # If the loop finished and we never met the target, use the best (lowest size) result we got
+                if final_bytes is None:
+                    final_bytes = best_effort_bytes
+            # --- END OF NEW LOGIC ---
 
         elif ext == '.png':
             mimetype, ext_out = 'image/png', 'png'
