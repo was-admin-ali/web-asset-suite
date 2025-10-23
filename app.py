@@ -1057,14 +1057,20 @@ def compress_image() -> FlaskResponse:
 
         if ext in ['.jpg', '.jpeg']:
             mimetype, ext_out = 'image/jpeg', 'jpg'
-            # Iteratively find the best quality setting for the target size
-            for quality in range(95, 10, -5):
+            # Iteratively find the best quality setting, but DO NOT go below 75
+            for quality in range(95, 74, -5): # This is the "Quality Floor"
                 out_buffer = io.BytesIO()
                 image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
-                best_effort_bytes = out_buffer.getvalue()
-                if len(best_effort_bytes) <= target_size:
-                    final_bytes = best_effort_bytes
-                    break
+                current_bytes = out_buffer.getvalue()
+                
+                # Always save the latest result as the best effort so far
+                best_effort_bytes = current_bytes
+
+                if len(current_bytes) <= target_size:
+                    final_bytes = current_bytes
+                    break # Success, we met the target
+
+            # If the loop finished and we never met the target, use the best (lowest size) result we got
             if final_bytes is None:
                 final_bytes = best_effort_bytes
 
