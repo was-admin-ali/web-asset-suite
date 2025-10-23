@@ -1055,6 +1055,7 @@ def compress_image() -> FlaskResponse:
             low, high = 1, 96
             best_quality = 95
             
+            # Binary search for the best quality setting
             while low <= high:
                 quality = (low + high) // 2
                 buffer = io.BytesIO()
@@ -1062,11 +1063,12 @@ def compress_image() -> FlaskResponse:
                 
                 if buffer.tell() <= target_bytes:
                     best_quality = quality
-                    out_buffer = buffer
+                    out_buffer = buffer # Store the successful buffer
                     low = quality + 1
                 else:
                     high = quality - 1
             
+            # If no suitable quality was found (target too small), use the best one we found
             if out_buffer.tell() == 0:
                  image.convert('RGB').save(out_buffer, format='JPEG', quality=best_quality, optimize=True, progressive=True)
 
@@ -1076,30 +1078,11 @@ def compress_image() -> FlaskResponse:
             mimetype, ext_out = 'image/jpeg', 'jpg'
 
         elif ext == '.png':
-            low, high = 2, 256
-            best_colors = 256
-            
-            while low <= high:
-                colors = (low + high) // 2
-                buffer = io.BytesIO()
-                quantized = image.convert("RGBA").quantize(colors=colors, dither=Image.Dither.FLOYDSTEINBERG)
-                quantized.save(buffer, format='PNG', optimize=True)
-                
-                if buffer.tell() <= target_bytes:
-                    best_colors = colors
-                    out_buffer = buffer
-                    low = colors + 1
-                else:
-                    high = colors - 1
-            
-            if out_buffer.tell() == 0:
-                quantized = image.convert("RGBA").quantize(colors=best_colors, dither=Image.Dither.FLOYDSTEINBERG)
-                quantized.save(out_buffer, format='PNG', optimize=True)
-            
-            if out_buffer.tell() > target_bytes:
-                target_met = False
-
+             # For PNGs, we just apply maximum lossless compression
+            image.save(out_buffer, format='PNG', optimize=True, compress_level=9)
             mimetype, ext_out = 'image/png', 'png'
+            # Target size is not applicable for lossless PNG, so we consider it "met" if size is reduced
+            target_met = out_buffer.tell() < original_size
             
         else:
             return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400

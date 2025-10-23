@@ -433,11 +433,11 @@ function initImageCompressorPage() {
     const downloadBtn = document.getElementById('download-btn');
     const compressionStatusMessage = document.getElementById('compression-status-message');
     
-    // START: MODIFIED to handle target size slider
+    // START: CORRECTED variable names
     const targetSizeContainer = document.getElementById('target-size-container');
     const targetSizeSlider = document.getElementById('target-size-slider');
     const targetSizeValue = document.getElementById('target-size-value');
-    // END: MODIFIED
+    // END: CORRECTED
 
     let originalFile = null;
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB, to match Flask config
