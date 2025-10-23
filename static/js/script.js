@@ -432,9 +432,12 @@ function initImageCompressorPage() {
     const compressedPreview = document.getElementById('compressed-preview');
     const downloadBtn = document.getElementById('download-btn');
     const compressionStatusMessage = document.getElementById('compression-status-message');
-    const qualityContainer = document.getElementById('quality-container');
-    const sizeSlider = document.getElementById('size-slider');
-    const sizeValue = document.getElementById('size-value');
+    
+    // START: MODIFIED to handle target size slider
+    const targetSizeContainer = document.getElementById('target-size-container');
+    const targetSizeSlider = document.getElementById('target-size-slider');
+    const targetSizeValue = document.getElementById('target-size-value');
+    // END: MODIFIED
 
     let originalFile = null;
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB, to match Flask config
@@ -460,17 +463,10 @@ function initImageCompressorPage() {
         }
         originalFile = file;
         const fileName = originalFile.name;
-        const fileNameLower = fileName.toLowerCase();
         fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
         resultsContainer.classList.add('hidden');
         errorContainer.classList.add('hidden');
-        if (qualityContainer) {
-            if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg') || fileNameLower.endsWith('.png')) {
-                qualityContainer.style.display = 'flex';
-            } else {
-                qualityContainer.style.display = 'none';
-            }
-        }
+        if(targetSizeContainer) targetSizeContainer.style.display = 'flex';
         return true;
     };
 
@@ -480,16 +476,16 @@ function initImageCompressorPage() {
         }
     });
     
-    if (sizeSlider && sizeValue) {
+    if (targetSizeSlider && targetSizeValue) {
         const updateSliderAppearance = () => {
-            sizeValue.textContent = `${sizeSlider.value}%`;
-            const min = sizeSlider.min || 0;
-            const max = sizeSlider.max || 100;
-            const value = sizeSlider.value;
+            targetSizeValue.textContent = `${targetSizeSlider.value}%`;
+            const min = targetSizeSlider.min || 0;
+            const max = targetSizeSlider.max || 100;
+            const value = targetSizeSlider.value;
             const fillPercent = ((value - min) / (max - min)) * 100;
-            sizeSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
+            targetSizeSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
         };
-        sizeSlider.addEventListener('input', updateSliderAppearance);
+        targetSizeSlider.addEventListener('input', updateSliderAppearance);
         updateSliderAppearance();
     }
 
@@ -523,9 +519,7 @@ function initImageCompressorPage() {
 
         const formData = new FormData();
         formData.append('image', originalFile);
-        if (qualityContainer && qualityContainer.style.display === 'flex') {
-            formData.append('target_size_percent', sizeSlider.value);
-        }
+        formData.append('target_size_percentage', targetSizeSlider.value);
 
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
@@ -553,8 +547,12 @@ function initImageCompressorPage() {
             reductionPercentEl.textContent = `${Math.max(0, reduction).toFixed(1)}%`;
             reductionPercentEl.style.color = compressionSuccessful ? 'var(--accent-secondary)' : 'var(--text-secondary)';
 
-            if (!compressionSuccessful && compressionStatusMessage) {
-                compressionStatusMessage.textContent = 'Could not reduce file size further.';
+             if (compressionStatusMessage) {
+                if (response.headers.get('X-Target-Met') === 'false') {
+                     compressionStatusMessage.textContent = 'Target size could not be met. Try a larger target.';
+                } else if (!compressionSuccessful) {
+                    compressionStatusMessage.textContent = 'Could not reduce file size further.';
+                }
             }
 
             originalPreview.src = URL.createObjectURL(originalFile);

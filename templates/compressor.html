@@ -18,13 +18,15 @@
                         <span class="file-type-info">PNG or JPG (Max 10MB)</span>
                     </div>
                 </div>
-                <div class="quality-slider-container" id="quality-container">
-                    <label for="size-slider">Target File Size (% of original):</label>
+                <!-- START: MODIFIED FOR TARGET SIZE SLIDER -->
+                <div class="quality-slider-container" id="target-size-container" style="display: none;">
+                    <label for="target-size-slider">Target File Size:</label>
                     <div class="slider-wrapper">
-                        <input type="range" id="size-slider" min="10" max="100" value="50">
-                        <span id="size-value">50%</span>
+                        <input type="range" id="target-size-slider" min="10" max="100" value="50">
+                        <span id="target-size-value">50%</span>
                     </div>
                 </div>
+                <!-- END: MODIFIED FOR TARGET SIZE SLIDER -->
                 <button type="submit" id="compress-btn" class="btn btn-primary">Compress Image</button>
             </form>
         </div>
