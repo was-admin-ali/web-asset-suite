@@ -1061,7 +1061,6 @@ def compress_image() -> FlaskResponse:
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
                 
-                # --- THIS IS THE CRITICAL FIX: USING ABSOLUTE PATHS ---
                 mozjpeg_path = "/usr/local/bin/mozjpeg"
 
                 # High-fidelity pass (no chroma subsampling)
@@ -1098,7 +1097,6 @@ def compress_image() -> FlaskResponse:
             elif ext == '.png':
                 mimetype, ext_out = 'image/png', 'png'
                 
-                # --- THIS IS THE CRITICAL FIX: USING ABSOLUTE PATHS ---
                 oxipng_path = "/usr/local/bin/oxipng"
                 pngquant_path = "/usr/bin/pngquant"
 
