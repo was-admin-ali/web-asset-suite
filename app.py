@@ -1092,7 +1092,8 @@ def compress_image() -> FlaskResponse:
                 oxipng_path = "/usr/local/bin/oxipng"
                 pngquant_path = "/usr/bin/pngquant"
 
-                cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "-out", output_path, input_path]
+                # Use the variables with the correct command order
+                cmd_lossless = [oxipng_path, input_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path]
                 subprocess.run(cmd_lossless, check=True, capture_output=True)
                 with open(output_path, 'rb') as f:
                     lossless_bytes = f.read()
@@ -1100,7 +1101,8 @@ def compress_image() -> FlaskResponse:
                 if len(lossless_bytes) <= target_size or target_reduction <= 30:
                     final_bytes = lossless_bytes
                 else:
-                    cmd_lossy = [pngquant_path, "--force", "--output", output_path, "--quality", "70-95", "256", input_path]
+                    # Use the variable with the correct command order
+                    cmd_lossy = [pngquant_path, "--force", "--quality", "70-95", "--output", output_path, input_path]
                     subprocess.run(cmd_lossy, check=True, capture_output=True)
                     with open(output_path, 'rb') as f:
                         lossy_bytes = f.read()
