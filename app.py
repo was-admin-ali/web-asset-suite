@@ -1061,14 +1061,13 @@ def compress_image() -> FlaskResponse:
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
                 
-                # Command-line tools check
-                if not shutil.which("mozjpeg"):
-                    raise RuntimeError("mozjpeg command not found on the server.")
+                # --- THIS IS THE CRITICAL FIX: USING ABSOLUTE PATHS ---
+                mozjpeg_path = "/usr/local/bin/mozjpeg"
 
                 # High-fidelity pass (no chroma subsampling)
                 cmd_hi_fi = [
-                    "mozjpeg", "-quality", "85", "-outfile", output_path,
-                    "-sample", "1x1", # This is equivalent to subsampling=0
+                    mozjpeg_path, "-quality", "85", "-outfile", output_path,
+                    "-sample", "1x1", 
                     input_path
                 ]
                 subprocess.run(cmd_hi_fi, check=True, capture_output=True)
@@ -1079,10 +1078,9 @@ def compress_image() -> FlaskResponse:
                 if len(hi_fi_bytes) <= target_size:
                     final_bytes = hi_fi_bytes
                 else:
-                    # Fallback to iterative search with standard (faster) subsampling
                     best_effort_bytes = hi_fi_bytes
                     for quality in range(85, 74, -5): # Quality floor of 75
-                        cmd = ["mozjpeg", "-quality", str(quality), "-outfile", output_path, input_path]
+                        cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
                         subprocess.run(cmd, check=True, capture_output=True)
                         with open(output_path, 'rb') as f:
                             current_bytes = f.read()
@@ -1100,12 +1098,12 @@ def compress_image() -> FlaskResponse:
             elif ext == '.png':
                 mimetype, ext_out = 'image/png', 'png'
                 
-                # Command-line tools check
-                if not shutil.which("oxipng") or not shutil.which("pngquant"):
-                     raise RuntimeError("oxipng or pngquant command not found on the server.")
+                # --- THIS IS THE CRITICAL FIX: USING ABSOLUTE PATHS ---
+                oxipng_path = "/usr/local/bin/oxipng"
+                pngquant_path = "/usr/bin/pngquant"
 
                 # Lossless compression with OxiPNG
-                cmd_lossless = ["oxipng", "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "-out", output_path, input_path]
+                cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "-out", output_path, input_path]
                 subprocess.run(cmd_lossless, check=True, capture_output=True)
                 with open(output_path, 'rb') as f:
                     lossless_bytes = f.read()
@@ -1114,12 +1112,11 @@ def compress_image() -> FlaskResponse:
                     final_bytes = lossless_bytes
                 else:
                     # Lossy compression with pngquant
-                    cmd_lossy = ["pngquant", "--force", "--output", output_path, "--quality", "70-95", "256", input_path]
+                    cmd_lossy = [pngquant_path, "--force", "--output", output_path, "--quality", "70-95", "256", input_path]
                     subprocess.run(cmd_lossy, check=True, capture_output=True)
                     with open(output_path, 'rb') as f:
                         lossy_bytes = f.read()
                     
-                    # Use the smaller of the two results
                     final_bytes = lossy_bytes if len(lossy_bytes) < len(lossless_bytes) else lossless_bytes
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
@@ -1146,13 +1143,14 @@ def compress_image() -> FlaskResponse:
         except subprocess.CalledProcessError as e:
             app.logger.error(f"Compression tool failed. STDERR: {e.stderr.decode()}")
             return jsonify({'error': 'The compression engine failed. The image may be corrupt or in an unsupported format.'}), 500
-        except RuntimeError as e:
-             app.logger.error(f"Server configuration error: {e}")
-             return jsonify({'error': str(e)}), 500
+        except FileNotFoundError as e:
+            app.logger.error(f"CRITICAL: A compression tool was not found at its absolute path. {e}")
+            return jsonify({'error': 'A required compression engine is missing on the server. Please contact support.'}), 500
         except Exception as e:
             traceback.print_exc()
             return jsonify({'error': f'An unexpected server error occurred during compression.'}), 500
 # --- END: NEW ADVANCED COMPRESS IMAGE FUNCTION ---
+
 
 @app.route('/download-image')
 @login_required
