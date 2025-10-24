@@ -1047,6 +1047,20 @@ def compress_image() -> FlaskResponse:
             target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
             target_size = original_size * (1 - (target_reduction / 100))
             
+            # --- START: DYNAMIC PATH FINDING ---
+            mozjpeg_path = shutil.which("mozjpeg")
+            oxipng_path = shutil.which("oxipng")
+            pngquant_path = shutil.which("pngquant")
+            
+            if not mozjpeg_path or not oxipng_path or not pngquant_path:
+                missing_tools = [
+                    tool for tool, path in [('mozjpeg', mozjpeg_path), ('oxipng', oxipng_path), ('pngquant', pngquant_path)] if not path
+                ]
+                error_msg = f"CRITICAL: The following compression tools are not installed or not in the system's PATH: {', '.join(missing_tools)}"
+                app.logger.error(error_msg)
+                return jsonify({'error': 'A required compression engine is missing on the server. Please contact support.'}), 500
+            # --- END: DYNAMIC PATH FINDING ---
+            
             ext = os.path.splitext(file.filename)[1].lower()
             input_path = os.path.join(temp_dir, f"original{ext}")
             output_path = os.path.join(temp_dir, f"compressed{ext}")
@@ -1059,7 +1073,6 @@ def compress_image() -> FlaskResponse:
 
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
-                mozjpeg_path = "/usr/local/bin/mozjpeg"
 
                 cmd_hi_fi = [mozjpeg_path, "-quality", "85", "-outfile", output_path, "-sample", "1x1", input_path]
                 subprocess.run(cmd_hi_fi, check=True, capture_output=True)
@@ -1089,10 +1102,7 @@ def compress_image() -> FlaskResponse:
 
             elif ext == '.png':
                 mimetype, ext_out = 'image/png', 'png'
-                oxipng_path = "/usr/local/bin/oxipng"
-                pngquant_path = "/usr/bin/pngquant"
 
-                # Use the variables with the correct command order
                 cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
                 subprocess.run(cmd_lossless, check=True, capture_output=True)
                 with open(output_path, 'rb') as f:
@@ -1101,7 +1111,6 @@ def compress_image() -> FlaskResponse:
                 if len(lossless_bytes) <= target_size or target_reduction <= 30:
                     final_bytes = lossless_bytes
                 else:
-                    # Use the variable with the correct command order
                     cmd_lossy = [pngquant_path, "--force", "--quality", "70-95", "--output", output_path, "256", input_path]
                     subprocess.run(cmd_lossy, check=True, capture_output=True)
                     with open(output_path, 'rb') as f:
@@ -1133,9 +1142,6 @@ def compress_image() -> FlaskResponse:
         except subprocess.CalledProcessError as e:
             app.logger.error(f"Compression tool failed. STDERR: {e.stderr.decode()}")
             return jsonify({'error': 'The compression engine failed. The image may be corrupt or in an unsupported format.'}), 500
-        except FileNotFoundError as e:
-            app.logger.error(f"CRITICAL: A compression tool was not found at its absolute path. {e}")
-            return jsonify({'error': 'A required compression engine is missing on the server. Please contact support.'}), 500
         except Exception as e:
             traceback.print_exc()
             return jsonify({'error': f'An unexpected server error occurred during compression.'}), 500
