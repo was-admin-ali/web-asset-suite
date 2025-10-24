@@ -1027,7 +1027,7 @@ def handle_extraction_request() -> FlaskResponse:
             return jsonify({'error': 'The domain name could not be found. Please check the URL.'}), 500
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
 
-# --- START: NEW ADVANCED COMPRESS IMAGE FUNCTION ---
+# --- START: FINAL, CORRECTED COMPRESS IMAGE FUNCTION ---
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
@@ -1042,7 +1042,6 @@ def compress_image() -> FlaskResponse:
     if original_size > MAX_FILE_SIZE:
         return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
 
-    # Use a temporary directory to handle files safely
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
@@ -1060,15 +1059,9 @@ def compress_image() -> FlaskResponse:
 
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
-                
                 mozjpeg_path = "/usr/local/bin/mozjpeg"
 
-                # High-fidelity pass (no chroma subsampling)
-                cmd_hi_fi = [
-                    mozjpeg_path, "-quality", "85", "-outfile", output_path,
-                    "-sample", "1x1", 
-                    input_path
-                ]
+                cmd_hi_fi = [mozjpeg_path, "-quality", "85", "-outfile", output_path, "-sample", "1x1", input_path]
                 subprocess.run(cmd_hi_fi, check=True, capture_output=True)
                 
                 with open(output_path, 'rb') as f:
@@ -1078,7 +1071,7 @@ def compress_image() -> FlaskResponse:
                     final_bytes = hi_fi_bytes
                 else:
                     best_effort_bytes = hi_fi_bytes
-                    for quality in range(85, 74, -5): # Quality floor of 75
+                    for quality in range(85, 74, -5):
                         cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
                         subprocess.run(cmd, check=True, capture_output=True)
                         with open(output_path, 'rb') as f:
@@ -1096,11 +1089,9 @@ def compress_image() -> FlaskResponse:
 
             elif ext == '.png':
                 mimetype, ext_out = 'image/png', 'png'
-                
                 oxipng_path = "/usr/local/bin/oxipng"
                 pngquant_path = "/usr/bin/pngquant"
 
-                # Lossless compression with OxiPNG
                 cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "-out", output_path, input_path]
                 subprocess.run(cmd_lossless, check=True, capture_output=True)
                 with open(output_path, 'rb') as f:
@@ -1109,7 +1100,6 @@ def compress_image() -> FlaskResponse:
                 if len(lossless_bytes) <= target_size or target_reduction <= 30:
                     final_bytes = lossless_bytes
                 else:
-                    # Lossy compression with pngquant
                     cmd_lossy = [pngquant_path, "--force", "--output", output_path, "--quality", "70-95", "256", input_path]
                     subprocess.run(cmd_lossy, check=True, capture_output=True)
                     with open(output_path, 'rb') as f:
