@@ -47,6 +47,7 @@ from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From
+import subprocess # NEW IMPORT for running external tools
 
 load_dotenv()
 
@@ -1026,7 +1027,7 @@ def handle_extraction_request() -> FlaskResponse:
             return jsonify({'error': 'The domain name could not be found. Please check the URL.'}), 500
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
 
-# --- START: EDITED COMPRESS IMAGE FUNCTION ---
+# --- START: NEW ADVANCED COMPRESS IMAGE FUNCTION ---
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
@@ -1035,108 +1036,123 @@ def compress_image() -> FlaskResponse:
 
     if 'image' not in request.files or not (file := request.files['image']).filename:
         return jsonify({'error': 'No image file provided'}), 400
-        
-    try:
-        target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
-        original_bytes = file.read()
-        original_size = len(original_bytes)
 
-        if original_size > MAX_FILE_SIZE:
-            return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
+    original_bytes = file.read()
+    original_size = len(original_bytes)
+    if original_size > MAX_FILE_SIZE:
+        return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
 
-        image = Image.open(io.BytesIO(original_bytes))
-        if image.width > MAX_IMAGE_DIMENSIONS[0] or image.height > MAX_IMAGE_DIMENSIONS[1]:
-            return jsonify({'error': f'Image dimensions exceed {MAX_IMAGE_DIMENSIONS[0]}x{MAX_IMAGE_DIMENSIONS[1]}px'}), 400
-
-        target_size = original_size * (1 - (target_reduction / 100))
-        ext = os.path.splitext(file.filename)[1].lower()
-        
-        final_bytes = None
-        best_effort_bytes = None
-        mimetype, ext_out = '', ''
-
-        if ext in ['.jpg', '.jpeg']:
-            mimetype, ext_out = 'image/jpeg', 'jpg'
+    # Use a temporary directory to handle files safely
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
+            target_size = original_size * (1 - (target_reduction / 100))
             
-            # --- START OF NEW "GRADIENT-AWARE" LOGIC ---
-            # Pass 1: High-Fidelity attempt to prevent color banding
-            high_fidelity_buffer = io.BytesIO()
-            # subsampling=0 preserves full color detail (4:4:4)
-            image.convert('RGB').save(high_fidelity_buffer, format='JPEG', quality=85, subsampling=0, optimize=True)
-            high_fidelity_bytes = high_fidelity_buffer.getvalue()
+            ext = os.path.splitext(file.filename)[1].lower()
+            input_path = os.path.join(temp_dir, f"original{ext}")
+            output_path = os.path.join(temp_dir, f"compressed{ext}")
 
-            # Check if this high-quality version already meets the target
-            if len(high_fidelity_bytes) <= target_size:
-                final_bytes = high_fidelity_bytes
-                app.logger.info("High-fidelity compression met the target size.")
-            else:
-                # Pass 2: Fallback to iterative search if high-fidelity is too large
-                app.logger.info("High-fidelity was too large. Falling back to iterative compression.")
-                best_effort_bytes = high_fidelity_bytes # Start with the best quality we have
+            with open(input_path, 'wb') as f:
+                f.write(original_bytes)
+
+            final_bytes = None
+            mimetype, ext_out = '', ''
+
+            if ext in ['.jpg', '.jpeg']:
+                mimetype, ext_out = 'image/jpeg', 'jpg'
                 
-                # Iteratively find the best quality setting, but DO NOT go below 75
-                for quality in range(95, 74, -5): # This is the "Quality Floor"
-                    out_buffer = io.BytesIO()
-                    # Standard subsampling is faster and often smaller
-                    image.convert('RGB').save(out_buffer, format='JPEG', quality=quality, optimize=True, progressive=True)
-                    current_bytes = out_buffer.getvalue()
+                # Command-line tools check
+                if not shutil.which("mozjpeg"):
+                    raise RuntimeError("mozjpeg command not found on the server.")
+
+                # High-fidelity pass (no chroma subsampling)
+                cmd_hi_fi = [
+                    "mozjpeg", "-quality", "85", "-outfile", output_path,
+                    "-sample", "1x1", # This is equivalent to subsampling=0
+                    input_path
+                ]
+                subprocess.run(cmd_hi_fi, check=True, capture_output=True)
+                
+                with open(output_path, 'rb') as f:
+                    hi_fi_bytes = f.read()
+                
+                if len(hi_fi_bytes) <= target_size:
+                    final_bytes = hi_fi_bytes
+                else:
+                    # Fallback to iterative search with standard (faster) subsampling
+                    best_effort_bytes = hi_fi_bytes
+                    for quality in range(85, 74, -5): # Quality floor of 75
+                        cmd = ["mozjpeg", "-quality", str(quality), "-outfile", output_path, input_path]
+                        subprocess.run(cmd, check=True, capture_output=True)
+                        with open(output_path, 'rb') as f:
+                            current_bytes = f.read()
+                        
+                        if len(current_bytes) < len(best_effort_bytes):
+                            best_effort_bytes = current_bytes
+                        
+                        if len(current_bytes) <= target_size:
+                            final_bytes = current_bytes
+                            break
                     
-                    # Update best_effort_bytes if the current result is smaller
-                    if len(current_bytes) < len(best_effort_bytes):
-                         best_effort_bytes = current_bytes
+                    if final_bytes is None:
+                        final_bytes = best_effort_bytes
 
-                    if len(current_bytes) <= target_size:
-                        final_bytes = current_bytes
-                        break # Success, we met the target
+            elif ext == '.png':
+                mimetype, ext_out = 'image/png', 'png'
+                
+                # Command-line tools check
+                if not shutil.which("oxipng") or not shutil.which("pngquant"):
+                     raise RuntimeError("oxipng or pngquant command not found on the server.")
 
-                # If the loop finished and we never met the target, use the best (lowest size) result we got
-                if final_bytes is None:
-                    final_bytes = best_effort_bytes
-            # --- END OF NEW LOGIC ---
+                # Lossless compression with OxiPNG
+                cmd_lossless = ["oxipng", "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "-out", output_path, input_path]
+                subprocess.run(cmd_lossless, check=True, capture_output=True)
+                with open(output_path, 'rb') as f:
+                    lossless_bytes = f.read()
 
-        elif ext == '.png':
-            mimetype, ext_out = 'image/png', 'png'
-            # Try lossless first
-            lossless_buffer = io.BytesIO()
-            image.save(lossless_buffer, format='PNG', optimize=True)
-            best_effort_bytes = lossless_buffer.getvalue()
-
-            if len(best_effort_bytes) <= target_size or target_reduction <= 30:
-                final_bytes = best_effort_bytes
+                if len(lossless_bytes) <= target_size or target_reduction <= 30:
+                    final_bytes = lossless_bytes
+                else:
+                    # Lossy compression with pngquant
+                    cmd_lossy = ["pngquant", "--force", "--output", output_path, "--quality", "70-95", "256", input_path]
+                    subprocess.run(cmd_lossy, check=True, capture_output=True)
+                    with open(output_path, 'rb') as f:
+                        lossy_bytes = f.read()
+                    
+                    # Use the smaller of the two results
+                    final_bytes = lossy_bytes if len(lossy_bytes) < len(lossless_bytes) else lossless_bytes
             else:
-                # If lossless isn't enough for a high target, use lossy quantization
-                lossy_image = image.convert("RGBA").quantize(colors=256, dither=Image.Dither.FLOYDSTEINBERG)
-                lossy_buffer = io.BytesIO()
-                lossy_image.save(lossy_buffer, format='PNG', optimize=True)
-                final_bytes = lossy_buffer.getvalue()
-                # If even lossy is bigger, revert to the best lossless result
-                if len(final_bytes) > len(best_effort_bytes):
-                    final_bytes = best_effort_bytes
-        else:
-            return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
+                return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
-        final_size = len(final_bytes)
-        success = final_size <= target_size
+            if final_bytes is None:
+                raise RuntimeError("Compression resulted in an empty file.")
 
-        if final_size < original_size:
-            track_usage('compressor', metadata={
-                'file_type': ext.replace('.', '').upper(),
-                'original_size': original_size,
-                'compressed_size': final_size,
-                'target_reduction': target_reduction
-            })
+            final_size = len(final_bytes)
+            success = final_size <= target_size
 
-        filename = f"compressed_{os.path.splitext(file.filename)[0]}.{ext_out}"
-        resp = send_file(io.BytesIO(final_bytes), mimetype=mimetype, as_attachment=True, download_name=filename)
-        resp.headers['X-Original-Size'] = str(original_size)
-        resp.headers['X-Compressed-Size'] = str(final_size)
-        resp.headers['X-Compression-Successful'] = str(success).lower()
-        return resp
+            if final_size < original_size:
+                track_usage('compressor', metadata={
+                    'file_type': ext.replace('.', '').upper(), 'original_size': original_size,
+                    'compressed_size': final_size, 'target_reduction': target_reduction
+                })
 
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({'error': f'An error occurred: {e}'}), 500
-# --- END: EDITED COMPRESS IMAGE FUNCTION ---
+            filename = f"compressed_{os.path.splitext(file.filename)[0]}.{ext_out}"
+            resp = send_file(io.BytesIO(final_bytes), mimetype=mimetype, as_attachment=True, download_name=filename)
+            resp.headers['X-Original-Size'] = str(original_size)
+            resp.headers['X-Compressed-Size'] = str(final_size)
+            resp.headers['X-Compression-Successful'] = str(success).lower()
+            return resp
+
+        except subprocess.CalledProcessError as e:
+            app.logger.error(f"Compression tool failed. STDERR: {e.stderr.decode()}")
+            return jsonify({'error': 'The compression engine failed. The image may be corrupt or in an unsupported format.'}), 500
+        except RuntimeError as e:
+             app.logger.error(f"Server configuration error: {e}")
+             return jsonify({'error': str(e)}), 500
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'error': f'An unexpected server error occurred during compression.'}), 500
+# --- END: NEW ADVANCED COMPRESS IMAGE FUNCTION ---
 
 @app.route('/download-image')
 @login_required
