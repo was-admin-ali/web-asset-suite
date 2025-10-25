@@ -1141,26 +1141,33 @@ def compress_image() -> FlaskResponse:
                     final_output_path = os.path.join(temp_dir, f"final.png")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
                     
-                    # 1. Get purely lossless result as a baseline
+                    # 1. Always get a high-quality lossless result first.
                     cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", lossless_output_path, input_path]
                     subprocess.run(cmd_lossless, check=True, capture_output=True)
                     with open(lossless_output_path, 'rb') as f: lossless_bytes = f.read()
 
-                    # 2. If lossless is good enough or target is low, use it
-                    if len(lossless_bytes) <= target_size or target_reduction <= 30:
+                    # 2. If lossless is good enough or target is low, use it.
+                    if len(lossless_bytes) <= target_size or target_reduction < 30:
                         final_bytes = lossless_bytes
                     else:
-                        # 3. Perform aggressive lossy + lossless chain
-                        cmd_lossy = [pngquant_path, "--force", "--quality", "65-80", "--output", lossy_temp_path, input_path]
+                        # 3. Adjust pngquant quality based on how aggressive the user wants to be.
+                        if target_reduction >= 80:
+                            pngquant_quality = "60-75"
+                        elif target_reduction >= 60:
+                            pngquant_quality = "70-85"
+                        else:
+                            pngquant_quality = "80-95"
+
+                        # 4. Perform the aggressive lossy + lossless chain with the dynamic quality.
+                        cmd_lossy = [pngquant_path, "--force", "--quality", pngquant_quality, "--output", lossy_temp_path, input_path]
                         subprocess.run(cmd_lossy, check=True, capture_output=True, text=True)
                         
                         cmd_recompress = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", final_output_path, lossy_temp_path]
                         subprocess.run(cmd_recompress, check=True, capture_output=True)
                         with open(final_output_path, 'rb') as f: chained_bytes = f.read()
                         
-                        # 4. Choose the best result between pure lossless and the chained method
+                        # 5. Intelligently choose the smallest file. This preserves quality if the lossy version isn't better.
                         final_bytes = chained_bytes if len(chained_bytes) < len(lossless_bytes) else lossless_bytes
-
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
