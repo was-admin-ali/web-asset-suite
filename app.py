@@ -877,7 +877,7 @@ def google_auth_callback():
             except Exception as e:
                 db.session.rollback()
                 app.logger.error(f"An error occurred during Google registration: {e}")
-                flash('Could not create account due to a server issue. Please try again.', 'error')
+                flash('Could not create account due to a server issue. Please try again later.', 'error')
                 return redirect(url_for('register'))
     
     # Fallback in case something goes wrong
@@ -1126,22 +1126,44 @@ def compress_image() -> FlaskResponse:
                         if final_bytes is None: final_bytes = best_effort_bytes
 
             elif ext == '.png':
-                mimetype, ext_out = 'image/png', 'png'
-                oxipng_path = shutil.which("oxipng")
+                # --- START: INTELLIGENT PNG STRATEGY ---
+                img_buffer = io.BytesIO(original_bytes)
+                img = Image.open(img_buffer)
                 
-                if not oxipng_path:
-                    app.logger.warning(f"oxipng not found. Falling back to Pillow for PNG compression.")
-                    compression_method = "pillow_fallback"
-                    final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
-                else:
-                    input_path = os.path.join(temp_dir, f"original{ext}")
-                    output_path = os.path.join(temp_dir, f"compressed.png")
-                    with open(input_path, 'wb') as f: f.write(original_bytes)
+                # Check if the PNG has an alpha channel. 'RGBA' and 'LA' modes have it.
+                has_transparency = img.mode in ('RGBA', 'LA', 'P')
+                
+                # Heuristic: If it doesn't have transparency, it's likely a photograph, so convert to JPG.
+                if not has_transparency:
+                    app.logger.info("Photographic PNG detected. Converting to high-quality JPG.")
+                    mimetype, ext_out = 'image/jpeg', 'jpg'
+                    compression_method = "png_to_jpg_conversion"
                     
-                    # Use the most powerful lossless optimization level from oxipng
-                    cmd_lossless = [oxipng_path, "-o", "6", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
-                    subprocess.run(cmd_lossless, check=True, capture_output=True)
-                    with open(output_path, 'rb') as f: final_bytes = f.read()
+                    # Convert to RGB, create a buffer, save as high-quality JPG
+                    rgb_img = img.convert('RGB')
+                    output_buffer = io.BytesIO()
+                    rgb_img.save(output_buffer, format='JPEG', quality=85, optimize=True)
+                    final_bytes = output_buffer.getvalue()
+                else:
+                    # It's a graphic with transparency, so use the best lossless PNG compression.
+                    app.logger.info("Graphic PNG with transparency detected. Using powerful lossless compression.")
+                    mimetype, ext_out = 'image/png', 'png'
+                    oxipng_path = shutil.which("oxipng")
+                    
+                    if not oxipng_path:
+                        app.logger.warning("oxipng not found. Falling back to Pillow for PNG.")
+                        compression_method = "pillow_fallback"
+                        final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
+                    else:
+                        input_path = os.path.join(temp_dir, f"original.png")
+                        output_path = os.path.join(temp_dir, f"compressed.png")
+                        with open(input_path, 'wb') as f: f.write(original_bytes)
+                        
+                        # Use the most powerful lossless setting
+                        cmd_lossless = [oxipng_path, "-o", "6", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
+                        subprocess.run(cmd_lossless, check=True, capture_output=True)
+                        with open(output_path, 'rb') as f: final_bytes = f.read()
+                # --- END: INTELLIGENT PNG STRATEGY ---
 
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
