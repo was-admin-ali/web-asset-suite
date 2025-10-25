@@ -1027,7 +1027,47 @@ def handle_extraction_request() -> FlaskResponse:
             return jsonify({'error': 'The domain name could not be found. Please check the URL.'}), 500
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
 
-# --- START: FINAL, CORRECTED COMPRESS IMAGE FUNCTION ---
+# START: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float, original_size: int) -> Optional[bytes]:
+    """Fallback compression using Pillow if external tools are missing."""
+    try:
+        img_buffer = io.BytesIO(image_bytes)
+        img = Image.open(img_buffer)
+        
+        if img.mode in ('P', 'PA'):
+            img = img.convert('RGBA' if file_ext == '.png' else 'RGB')
+        elif img.mode not in ('RGB', 'RGBA', 'L'):
+             img = img.convert('RGB')
+        
+        output_buffer = io.BytesIO()
+        
+        if file_ext in ['.jpg', '.jpeg']:
+            best_bytes = None
+            for quality in range(85, 49, -10):
+                output_buffer.seek(0)
+                output_buffer.truncate(0)
+                img.save(output_buffer, format='JPEG', quality=quality, optimize=True)
+                current_bytes = output_buffer.getvalue()
+                if len(current_bytes) <= target_size:
+                    best_bytes = current_bytes
+                    break
+                if best_bytes is None or len(current_bytes) < len(best_bytes):
+                    best_bytes = current_bytes
+            return best_bytes
+
+        elif file_ext == '.png':
+            img.save(output_buffer, format='PNG', optimize=True)
+            result_bytes = output_buffer.getvalue()
+            return result_bytes if len(result_bytes) < original_size else image_bytes
+            
+        return None
+    except Exception as e:
+        app.logger.error(f"Pillow fallback compression failed: {e}")
+        return image_bytes
+# END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+
+
+# START: MODIFIED COMPRESS IMAGE FUNCTION WITH FALLBACK
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
@@ -1047,81 +1087,75 @@ def compress_image() -> FlaskResponse:
             target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
             target_size = original_size * (1 - (target_reduction / 100))
             
-            # --- START: DYNAMIC PATH FINDING ---
-            mozjpeg_path = shutil.which("mozjpeg")
-            oxipng_path = shutil.which("oxipng")
-            pngquant_path = shutil.which("pngquant")
-            
-            if not mozjpeg_path or not oxipng_path or not pngquant_path:
-                missing_tools = [
-                    tool for tool, path in [('mozjpeg', mozjpeg_path), ('oxipng', oxipng_path), ('pngquant', pngquant_path)] if not path
-                ]
-                error_msg = f"CRITICAL: The following compression tools are not installed or not in the system's PATH: {', '.join(missing_tools)}"
-                app.logger.error(error_msg)
-                return jsonify({'error': 'A required compression engine is missing on the server. Please contact support.'}), 500
-            # --- END: DYNAMIC PATH FINDING ---
-            
             ext = os.path.splitext(file.filename)[1].lower()
-            input_path = os.path.join(temp_dir, f"original{ext}")
-            output_path = os.path.join(temp_dir, f"compressed{ext}")
-
-            with open(input_path, 'wb') as f:
-                f.write(original_bytes)
-
+            
             final_bytes = None
             mimetype, ext_out = '', ''
+            compression_method = "external_tool" 
 
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
+                mozjpeg_path = shutil.which("mozjpeg")
 
-                cmd_hi_fi = [mozjpeg_path, "-quality", "85", "-outfile", output_path, "-sample", "1x1", input_path]
-                subprocess.run(cmd_hi_fi, check=True, capture_output=True)
-                
-                with open(output_path, 'rb') as f:
-                    hi_fi_bytes = f.read()
-                
-                if len(hi_fi_bytes) <= target_size:
-                    final_bytes = hi_fi_bytes
+                if not mozjpeg_path:
+                    app.logger.warning("mozjpeg not found. Falling back to Pillow for JPG compression.")
+                    compression_method = "pillow_fallback"
+                    final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
                 else:
-                    best_effort_bytes = hi_fi_bytes
-                    for quality in range(85, 74, -5):
-                        cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
-                        subprocess.run(cmd, check=True, capture_output=True)
-                        with open(output_path, 'rb') as f:
-                            current_bytes = f.read()
-                        
-                        if len(current_bytes) < len(best_effort_bytes):
-                            best_effort_bytes = current_bytes
-                        
-                        if len(current_bytes) <= target_size:
-                            final_bytes = current_bytes
-                            break
+                    input_path = os.path.join(temp_dir, f"original{ext}")
+                    output_path = os.path.join(temp_dir, f"compressed{ext}")
+                    with open(input_path, 'wb') as f: f.write(original_bytes)
+
+                    cmd_hi_fi = [mozjpeg_path, "-quality", "85", "-outfile", output_path, "-sample", "1x1", input_path]
+                    subprocess.run(cmd_hi_fi, check=True, capture_output=True)
+                    with open(output_path, 'rb') as f: hi_fi_bytes = f.read()
                     
-                    if final_bytes is None:
-                        final_bytes = best_effort_bytes
+                    if len(hi_fi_bytes) <= target_size:
+                        final_bytes = hi_fi_bytes
+                    else:
+                        best_effort_bytes = hi_fi_bytes
+                        for quality in range(80, 69, -5):
+                            cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
+                            subprocess.run(cmd, check=True, capture_output=True)
+                            with open(output_path, 'rb') as f: current_bytes = f.read()
+                            
+                            if len(current_bytes) < len(best_effort_bytes): best_effort_bytes = current_bytes
+                            if len(current_bytes) <= target_size:
+                                final_bytes = current_bytes
+                                break
+                        if final_bytes is None: final_bytes = best_effort_bytes
 
             elif ext == '.png':
                 mimetype, ext_out = 'image/png', 'png'
-
-                cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
-                subprocess.run(cmd_lossless, check=True, capture_output=True)
-                with open(output_path, 'rb') as f:
-                    lossless_bytes = f.read()
-
-                if len(lossless_bytes) <= target_size or target_reduction <= 30:
-                    final_bytes = lossless_bytes
+                oxipng_path = shutil.which("oxipng")
+                pngquant_path = shutil.which("pngquant")
+                
+                if not oxipng_path or not pngquant_path:
+                    app.logger.warning(f"oxipng/pngquant not found. Falling back to Pillow for PNG compression.")
+                    compression_method = "pillow_fallback"
+                    final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
                 else:
-                    cmd_lossy = [pngquant_path, "--force", "--quality", "70-95", "--output", output_path, "256", input_path]
-                    subprocess.run(cmd_lossy, check=True, capture_output=True)
-                    with open(output_path, 'rb') as f:
-                        lossy_bytes = f.read()
+                    input_path = os.path.join(temp_dir, f"original{ext}")
+                    output_path = os.path.join(temp_dir, f"compressed{ext}")
+                    with open(input_path, 'wb') as f: f.write(original_bytes)
                     
-                    final_bytes = lossy_bytes if len(lossy_bytes) < len(lossless_bytes) else lossless_bytes
+                    cmd_lossless = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
+                    subprocess.run(cmd_lossless, check=True, capture_output=True)
+                    with open(output_path, 'rb') as f: lossless_bytes = f.read()
+
+                    if len(lossless_bytes) <= target_size or target_reduction <= 30:
+                        final_bytes = lossless_bytes
+                    else:
+                        cmd_lossy = [pngquant_path, "--force", "--quality", "70-95", "--output", output_path, "256", input_path]
+                        subprocess.run(cmd_lossy, check=True, capture_output=True)
+                        with open(output_path, 'rb') as f: lossy_bytes = f.read()
+                        
+                        final_bytes = lossy_bytes if len(lossy_bytes) < len(lossless_bytes) else lossless_bytes
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
             if final_bytes is None:
-                raise RuntimeError("Compression resulted in an empty file.")
+                raise RuntimeError("Compression failed and fallback did not produce a result.")
 
             final_size = len(final_bytes)
             success = final_size <= target_size
@@ -1129,7 +1163,8 @@ def compress_image() -> FlaskResponse:
             if final_size < original_size:
                 track_usage('compressor', metadata={
                     'file_type': ext.replace('.', '').upper(), 'original_size': original_size,
-                    'compressed_size': final_size, 'target_reduction': target_reduction
+                    'compressed_size': final_size, 'target_reduction': target_reduction,
+                    'method': compression_method
                 })
 
             filename = f"compressed_{os.path.splitext(file.filename)[0]}.{ext_out}"
@@ -1137,6 +1172,7 @@ def compress_image() -> FlaskResponse:
             resp.headers['X-Original-Size'] = str(original_size)
             resp.headers['X-Compressed-Size'] = str(final_size)
             resp.headers['X-Compression-Successful'] = str(success).lower()
+            resp.headers['X-Compression-Method'] = compression_method
             return resp
 
         except subprocess.CalledProcessError as e:
@@ -1145,7 +1181,7 @@ def compress_image() -> FlaskResponse:
         except Exception as e:
             traceback.print_exc()
             return jsonify({'error': f'An unexpected server error occurred during compression.'}), 500
-# --- END: NEW ADVANCED COMPRESS IMAGE FUNCTION ---
+# END: MODIFIED COMPRESS IMAGE FUNCTION WITH FALLBACK
 
 
 @app.route('/download-image')
