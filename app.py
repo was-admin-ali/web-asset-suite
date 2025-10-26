@@ -877,7 +877,7 @@ def google_auth_callback():
             except Exception as e:
                 db.session.rollback()
                 app.logger.error(f"An error occurred during Google registration: {e}")
-                flash('Could not create account due to a server issue. Please try again.', 'error')
+                flash('Could not create account due to a server issue. Please try again later.', 'error')
                 return redirect(url_for('register'))
     
     # Fallback in case something goes wrong
@@ -1107,43 +1107,49 @@ def compress_image() -> FlaskResponse:
                     with open(input_path, 'wb') as f: f.write(original_bytes)
                     
                     # Dynamically set quality based on target reduction
-                    # Maps 0-90% reduction to 90-65 quality range
                     quality = max(65, 90 - int(target_reduction * 0.28))
                     
                     cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
                     subprocess.run(cmd, check=True, capture_output=True)
                     with open(output_path, 'rb') as f: final_bytes = f.read()
 
-
             elif ext == '.png':
                 mimetype, ext_out = 'image/png', 'png'
                 oxipng_path = shutil.which("oxipng")
                 pngquant_path = shutil.which("pngquant")
                 
-                if not oxipng_path or not pngquant_path:
-                    app.logger.warning(f"oxipng/pngquant not found. Falling back to Pillow for PNG.")
+                # Check if it's a photographic PNG (no transparency)
+                img = Image.open(io.BytesIO(original_bytes))
+                has_transparency = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+
+                if not has_transparency and shutil.which("mozjpeg"):
+                    app.logger.info("Photographic PNG detected. Converting to high-quality JPG.")
+                    compression_method = "png_to_jpg_conversion"
+                    mimetype, ext_out = 'image/jpeg', 'jpg'
+                    
+                    rgb_img = img.convert('RGB')
+                    jpg_input_path = os.path.join(temp_dir, "from_png.jpg")
+                    rgb_img.save(jpg_input_path, format='JPEG', quality=100)
+                    
+                    output_path = os.path.join(temp_dir, "compressed.jpg")
+                    
+                    quality = max(70, 90 - int(target_reduction * 0.22))
+                    cmd = [shutil.which("mozjpeg"), "-quality", str(quality), "-outfile", output_path, jpg_input_path]
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    with open(output_path, 'rb') as f: final_bytes = f.read()
+
+                elif not oxipng_path:
+                    app.logger.warning(f"oxipng not found. Falling back to Pillow for PNG.")
                     compression_method = "pillow_fallback"
                     final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
                 else:
-                    input_path = os.path.join(temp_dir, "original.png")
-                    lossy_temp_path = os.path.join(temp_dir, "lossy_temp.png")
-                    final_output_path = os.path.join(temp_dir, "final.png")
+                    input_path = os.path.join(temp_dir, f"original.png")
+                    output_path = os.path.join(temp_dir, f"compressed.png")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
                     
-                    # Dynamic quality for pngquant based on user's target reduction
-                    if target_reduction >= 85: pngquant_quality = "65-80"
-                    elif target_reduction >= 60: pngquant_quality = "70-85"
-                    else: pngquant_quality = "75-90"
-                    
-                    # Stage 1: Aggressive lossy compression
-                    cmd_lossy = [pngquant_path, "--force", "--quality", pngquant_quality, "--output", lossy_temp_path, input_path]
-                    subprocess.run(cmd_lossy, check=True, capture_output=True, text=True)
-                    
-                    # Stage 2: Final lossless optimization on the lossy output
-                    cmd_recompress = [oxipng_path, "-o", "4", "--out", final_output_path, lossy_temp_path]
-                    subprocess.run(cmd_recompress, check=True, capture_output=True)
-                    with open(final_output_path, 'rb') as f: final_bytes = f.read()
-
+                    cmd_lossless = [oxipng_path, "-o", "6", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
+                    subprocess.run(cmd_lossless, check=True, capture_output=True)
+                    with open(output_path, 'rb') as f: final_bytes = f.read()
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
@@ -1637,4 +1643,4 @@ if __name__ == '__main__':
     DEBUG_MODE = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(debug=DEBUG_MODE)
 
-# --- END OF FINAL, COMPLETE app.py FILE ---```
+# --- END OF FINAL, COMPLETE app.py FILE ---
