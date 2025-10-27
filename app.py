@@ -1114,15 +1114,22 @@ def compress_image() -> FlaskResponse:
                     with open(output_path, 'rb') as f: final_bytes = f.read()
 
             elif ext == '.png':
+                # --- START: INTELLIGENT PNG STRATEGY ---
                 mimetype, ext_out = 'image/png', 'png'
-                oxipng_path = shutil.which("oxipng")
-                pngquant_path = shutil.which("pngquant")
-                
-                # Check if it's a photographic PNG (no transparency)
                 img = Image.open(io.BytesIO(original_bytes))
-                has_transparency = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+                
+                # Definitive check for actual transparency
+                has_transparency = False
+                if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+                    alpha = img.convert('RGBA').getchannel('A')
+                    # If min value of alpha channel is 255, all pixels are opaque
+                    if alpha.getextrema()[0] < 255:
+                        has_transparency = True
 
-                if not has_transparency and shutil.which("mozjpeg"):
+                mozjpeg_path = shutil.which("mozjpeg")
+
+                # If it's a photo (no transparency), convert to high-quality JPG for best results
+                if not has_transparency and mozjpeg_path:
                     app.logger.info("Photographic PNG detected. Converting to high-quality JPG.")
                     compression_method = "png_to_jpg_conversion"
                     mimetype, ext_out = 'image/jpeg', 'jpg'
@@ -1132,24 +1139,28 @@ def compress_image() -> FlaskResponse:
                     rgb_img.save(jpg_input_path, format='JPEG', quality=100)
                     
                     output_path = os.path.join(temp_dir, "compressed.jpg")
-                    
                     quality = max(70, 90 - int(target_reduction * 0.22))
-                    cmd = [shutil.which("mozjpeg"), "-quality", str(quality), "-outfile", output_path, jpg_input_path]
+                    cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, jpg_input_path]
                     subprocess.run(cmd, check=True, capture_output=True)
                     with open(output_path, 'rb') as f: final_bytes = f.read()
-
-                elif not oxipng_path:
-                    app.logger.warning(f"oxipng not found. Falling back to Pillow for PNG.")
-                    compression_method = "pillow_fallback"
-                    final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
+                
+                # Otherwise, it's a graphic. Use the best lossless PNG compression.
                 else:
-                    input_path = os.path.join(temp_dir, f"original.png")
-                    output_path = os.path.join(temp_dir, f"compressed.png")
-                    with open(input_path, 'wb') as f: f.write(original_bytes)
-                    
-                    cmd_lossless = [oxipng_path, "-o", "6", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
-                    subprocess.run(cmd_lossless, check=True, capture_output=True)
-                    with open(output_path, 'rb') as f: final_bytes = f.read()
+                    app.logger.info("Graphic PNG with transparency detected. Using powerful lossless compression.")
+                    oxipng_path = shutil.which("oxipng")
+                    if not oxipng_path:
+                        app.logger.warning("oxipng not found. Falling back to Pillow for PNG.")
+                        compression_method = "pillow_fallback"
+                        final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
+                    else:
+                        input_path = os.path.join(temp_dir, "original.png")
+                        output_path = os.path.join(temp_dir, "compressed.png")
+                        with open(input_path, 'wb') as f: f.write(original_bytes)
+                        
+                        cmd = [oxipng_path, "-o", "6", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
+                        subprocess.run(cmd, check=True, capture_output=True)
+                        with open(output_path, 'rb') as f: final_bytes = f.read()
+
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
