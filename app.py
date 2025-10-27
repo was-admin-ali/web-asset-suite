@@ -1106,7 +1106,6 @@ def compress_image() -> FlaskResponse:
                     output_path = os.path.join(temp_dir, f"compressed{ext}")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
                     
-                    # Dynamically set quality based on target reduction
                     quality = max(65, 90 - int(target_reduction * 0.28))
                     
                     cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
@@ -1114,40 +1113,32 @@ def compress_image() -> FlaskResponse:
                     with open(output_path, 'rb') as f: final_bytes = f.read()
 
             elif ext == '.png':
-                # --- START: INTELLIGENT PNG STRATEGY ---
-                mimetype, ext_out = 'image/png', 'png'
                 img = Image.open(io.BytesIO(original_bytes))
                 
-                # Definitive check for actual transparency
                 has_transparency = False
                 if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
-                    alpha = img.convert('RGBA').getchannel('A')
-                    # If min value of alpha channel is 255, all pixels are opaque
+                    if img.mode != 'RGBA': img = img.convert('RGBA')
+                    alpha = img.getchannel('A')
                     if alpha.getextrema()[0] < 255:
                         has_transparency = True
 
                 mozjpeg_path = shutil.which("mozjpeg")
 
-                # If it's a photo (no transparency), convert to high-quality JPG for best results
                 if not has_transparency and mozjpeg_path:
-                    app.logger.info("Photographic PNG detected. Converting to high-quality JPG.")
+                    app.logger.info("Photographic PNG detected (no transparency). Converting to high-quality JPG.")
                     compression_method = "png_to_jpg_conversion"
                     mimetype, ext_out = 'image/jpeg', 'jpg'
                     
                     rgb_img = img.convert('RGB')
-                    jpg_input_path = os.path.join(temp_dir, "from_png.jpg")
-                    rgb_img.save(jpg_input_path, format='JPEG', quality=100)
-                    
-                    output_path = os.path.join(temp_dir, "compressed.jpg")
-                    quality = max(70, 90 - int(target_reduction * 0.22))
-                    cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, jpg_input_path]
-                    subprocess.run(cmd, check=True, capture_output=True)
-                    with open(output_path, 'rb') as f: final_bytes = f.read()
+                    output_buffer = io.BytesIO()
+                    rgb_img.save(output_buffer, format='JPEG', quality=85, optimize=True)
+                    final_bytes = output_buffer.getvalue()
                 
-                # Otherwise, it's a graphic. Use the best lossless PNG compression.
                 else:
-                    app.logger.info("Graphic PNG with transparency detected. Using powerful lossless compression.")
+                    app.logger.info("Graphic PNG detected (has transparency). Applying powerful lossless compression.")
+                    mimetype, ext_out = 'image/png', 'png'
                     oxipng_path = shutil.which("oxipng")
+                    
                     if not oxipng_path:
                         app.logger.warning("oxipng not found. Falling back to Pillow for PNG.")
                         compression_method = "pillow_fallback"
