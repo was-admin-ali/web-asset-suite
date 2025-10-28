@@ -1091,7 +1091,7 @@ def compress_image() -> FlaskResponse:
             
             final_bytes = None
             mimetype, ext_out = '', ''
-            compression_method = "external_tool" 
+            compression_method = "unknown"
 
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
@@ -1102,6 +1102,7 @@ def compress_image() -> FlaskResponse:
                     compression_method = "pillow_fallback"
                     final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
                 else:
+                    compression_method = "mozjpeg"
                     input_path = os.path.join(temp_dir, f"original{ext}")
                     output_path = os.path.join(temp_dir, f"compressed{ext}")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
@@ -1122,36 +1123,53 @@ def compress_image() -> FlaskResponse:
                     if alpha.getextrema()[0] < 255:
                         has_transparency = True
 
-                mozjpeg_path = shutil.which("mozjpeg")
-
-                if not has_transparency and mozjpeg_path:
-                    app.logger.info("Photographic PNG detected (no transparency). Converting to high-quality JPG.")
-                    compression_method = "png_to_jpg_conversion"
+                if not has_transparency and shutil.which("mozjpeg"):
+                    app.logger.info("Photographic PNG detected. Converting to high-quality JPG.")
                     mimetype, ext_out = 'image/jpeg', 'jpg'
-                    
+                    compression_method = "png_to_jpg_conversion"
                     rgb_img = img.convert('RGB')
                     output_buffer = io.BytesIO()
                     rgb_img.save(output_buffer, format='JPEG', quality=85, optimize=True)
                     final_bytes = output_buffer.getvalue()
-                
                 else:
-                    app.logger.info("Graphic PNG detected (has transparency). Applying powerful lossless compression.")
+                    app.logger.info("Graphic/Transparent PNG detected. Applying advanced PNG optimization.")
                     mimetype, ext_out = 'image/png', 'png'
                     oxipng_path = shutil.which("oxipng")
+                    pngquant_path = shutil.which("pngquant")
                     
-                    if not oxipng_path:
-                        app.logger.warning("oxipng not found. Falling back to Pillow for PNG.")
-                        compression_method = "pillow_fallback"
-                        final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
-                    else:
-                        input_path = os.path.join(temp_dir, "original.png")
-                        output_path = os.path.join(temp_dir, "compressed.png")
-                        with open(input_path, 'wb') as f: f.write(original_bytes)
-                        
-                        cmd = [oxipng_path, "-o", "6", "-s", "--strip", "safe", "-a", "-Z", "--out", output_path, input_path]
-                        subprocess.run(cmd, check=True, capture_output=True)
-                        with open(output_path, 'rb') as f: final_bytes = f.read()
+                    input_path = os.path.join(temp_dir, "original.png")
+                    with open(input_path, 'wb') as f: f.write(original_bytes)
+                    current_path = input_path
+                    
+                    methods_used = []
 
+                    if pngquant_path:
+                        quantized_path = os.path.join(temp_dir, "quantized.png")
+                        quality_min = max(0, 60 - target_reduction)
+                        quality_max = max(10, 85 - target_reduction)
+                        cmd_quant = [pngquant_path, '--force', '--skip-if-larger', f'--quality={quality_min}-{quality_max}', '--output', quantized_path, current_path]
+                        result = subprocess.run(cmd_quant, capture_output=True)
+                        if result.returncode == 0 and os.path.exists(quantized_path):
+                            current_path = quantized_path
+                            methods_used.append("pngquant")
+                        else:
+                             app.logger.warning(f"pngquant did not run or produce a smaller file. STDERR: {result.stderr.decode()}")
+                    
+                    if oxipng_path:
+                        optimized_path = os.path.join(temp_dir, "optimized.png")
+                        cmd_oxi = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", optimized_path, current_path]
+                        subprocess.run(cmd_oxi, check=True, capture_output=True)
+                        current_path = optimized_path
+                        methods_used.append("oxipng")
+
+                    if not methods_used:
+                        app.logger.warning("No external PNG tools found. Falling back to Pillow.")
+                        final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
+                        compression_method = "pillow_fallback"
+                    else:
+                        with open(current_path, 'rb') as f:
+                            final_bytes = f.read()
+                        compression_method = "+".join(methods_used)
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
