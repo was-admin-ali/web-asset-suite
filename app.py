@@ -1067,7 +1067,7 @@ def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float,
 # END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
 
 
-# START: MODIFIED COMPRESS IMAGE FUNCTION WITH FALLBACK
+# START: DEBUGLOGGING FOR COMPRESS IMAGE
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
 def compress_image() -> FlaskResponse:
@@ -1081,126 +1081,120 @@ def compress_image() -> FlaskResponse:
     original_size = len(original_bytes)
     if original_size > MAX_FILE_SIZE:
         return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
+    
+    app.logger.info("--- Starting new image compression request ---")
+    app.logger.info(f"Original file: {file.filename}, Size: {original_size} bytes")
+
+    mozjpeg_path = shutil.which("mozjpeg")
+    pngquant_path = shutil.which("pngquant")
+    oxipng_path = shutil.which("oxipng")
+    app.logger.info(f"Tool paths found: mozjpeg='{mozjpeg_path}', pngquant='{pngquant_path}', oxipng='{oxipng_path}'")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             target_reduction = max(0, min(90, int(request.form.get('target_reduction', 50))))
             target_size = original_size * (1 - (target_reduction / 100))
-            
             ext = os.path.splitext(file.filename)[1].lower()
             
-            final_bytes = None
-            mimetype, ext_out = '', ''
-            compression_method = "unknown"
+            final_bytes, mimetype, ext_out, compression_method = None, '', '', "unknown"
 
             if ext in ['.jpg', '.jpeg']:
                 mimetype, ext_out = 'image/jpeg', 'jpg'
-                mozjpeg_path = shutil.which("mozjpeg")
-
                 if not mozjpeg_path:
-                    app.logger.warning("mozjpeg not found. Falling back to Pillow for JPG compression.")
+                    app.logger.warning("mozjpeg not found. Falling back to Pillow for JPG.")
                     compression_method = "pillow_fallback"
                     final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
                 else:
                     compression_method = "mozjpeg"
-                    input_path = os.path.join(temp_dir, f"original{ext}")
-                    output_path = os.path.join(temp_dir, f"compressed{ext}")
+                    input_path, output_path = os.path.join(temp_dir, f"original{ext}"), os.path.join(temp_dir, f"compressed{ext}")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
-                    
                     quality = max(65, 90 - int(target_reduction * 0.28))
-                    
                     cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
-                    subprocess.run(cmd, check=True, capture_output=True)
+                    app.logger.info(f"Running mozjpeg command: {' '.join(cmd)}")
+                    result = subprocess.run(cmd, check=True, capture_output=True)
+                    app.logger.info(f"mozjpeg stdout: {result.stdout.decode()}")
+                    app.logger.error(f"mozjpeg stderr: {result.stderr.decode()}")
                     with open(output_path, 'rb') as f: final_bytes = f.read()
 
             elif ext == '.png':
                 img = Image.open(io.BytesIO(original_bytes))
-                
-                has_transparency = False
-                if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
-                    if img.mode != 'RGBA': img = img.convert('RGBA')
-                    alpha = img.getchannel('A')
-                    if alpha.getextrema()[0] < 255:
-                        has_transparency = True
+                has_transparency = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+                app.logger.info(f"PNG detected. Image mode: {img.mode}. Has transparency: {has_transparency}")
 
-                if not has_transparency and shutil.which("mozjpeg"):
-                    app.logger.info("Photographic PNG detected. Converting to high-quality JPG.")
-                    mimetype, ext_out = 'image/jpeg', 'jpg'
-                    compression_method = "png_to_jpg_conversion"
+                if not has_transparency and mozjpeg_path:
+                    app.logger.info("Photographic PNG detected. Converting to JPG.")
+                    mimetype, ext_out, compression_method = 'image/jpeg', 'jpg', "png_to_jpg"
                     rgb_img = img.convert('RGB')
                     output_buffer = io.BytesIO()
                     rgb_img.save(output_buffer, format='JPEG', quality=85, optimize=True)
                     final_bytes = output_buffer.getvalue()
                 else:
-                    app.logger.info("Graphic/Transparent PNG detected. Applying advanced PNG optimization.")
+                    app.logger.info("Graphic/Transparent PNG detected. Applying PNG optimization pipeline.")
                     mimetype, ext_out = 'image/png', 'png'
-                    oxipng_path = shutil.which("oxipng")
-                    pngquant_path = shutil.which("pngquant")
-                    
                     input_path = os.path.join(temp_dir, "original.png")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
-                    current_path = input_path
-                    
-                    methods_used = []
+                    current_path, methods_used = input_path, []
 
                     if pngquant_path:
-                        quantized_path = os.path.join(temp_dir, "quantized.png")
-                        quality_min = max(0, 60 - target_reduction)
-                        quality_max = max(10, 85 - target_reduction)
-                        cmd_quant = [pngquant_path, '--force', '--skip-if-larger', f'--quality={quality_min}-{quality_max}', '--output', quantized_path, current_path]
-                        result = subprocess.run(cmd_quant, capture_output=True)
-                        if result.returncode == 0 and os.path.exists(quantized_path):
-                            current_path = quantized_path
+                        quant_path = os.path.join(temp_dir, "quantized.png")
+                        quality_min, quality_max = max(0, 60 - target_reduction), max(10, 85 - target_reduction)
+                        cmd = [pngquant_path, '--force', '--skip-if-larger', f'--quality={quality_min}-{quality_max}', '--output', quant_path, current_path]
+                        app.logger.info(f"Running pngquant command: {' '.join(cmd)}")
+                        result = subprocess.run(cmd, capture_output=True)
+                        app.logger.info(f"pngquant stdout: {result.stdout.decode()}")
+                        app.logger.error(f"pngquant stderr: {result.stderr.decode()}")
+                        if result.returncode == 0 and os.path.exists(quant_path) and os.path.getsize(quant_path) < os.path.getsize(current_path):
+                            current_path = quant_path
                             methods_used.append("pngquant")
+                            app.logger.info(f"pngquant successful. New size: {os.path.getsize(current_path)}")
                         else:
-                             app.logger.warning(f"pngquant did not run or produce a smaller file. STDERR: {result.stderr.decode()}")
+                            app.logger.warning("pngquant did not produce a smaller file or failed.")
                     
                     if oxipng_path:
-                        optimized_path = os.path.join(temp_dir, "optimized.png")
-                        cmd_oxi = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", optimized_path, current_path]
-                        subprocess.run(cmd_oxi, check=True, capture_output=True)
-                        current_path = optimized_path
+                        oxi_path = os.path.join(temp_dir, "optimized.png")
+                        cmd = [oxipng_path, "-o", "4", "-s", "--strip", "safe", "-a", "-Z", "--out", oxi_path, current_path]
+                        app.logger.info(f"Running oxipng command: {' '.join(cmd)}")
+                        result = subprocess.run(cmd, check=True, capture_output=True)
+                        app.logger.info(f"oxipng stdout: {result.stdout.decode()}")
+                        app.logger.error(f"oxipng stderr: {result.stderr.decode()}")
+                        current_path = oxi_path
                         methods_used.append("oxipng")
+                        app.logger.info(f"oxipng successful. New size: {os.path.getsize(current_path)}")
 
                     if not methods_used:
-                        app.logger.warning("No external PNG tools found. Falling back to Pillow.")
-                        final_bytes = _compress_with_pillow(original_bytes, ext, target_size, original_size)
-                        compression_method = "pillow_fallback"
+                        app.logger.warning("No external PNG tools used. Falling back to Pillow.")
+                        final_bytes, compression_method = _compress_with_pillow(original_bytes, ext, target_size, original_size), "pillow_fallback"
                     else:
-                        with open(current_path, 'rb') as f:
-                            final_bytes = f.read()
+                        with open(current_path, 'rb') as f: final_bytes = f.read()
                         compression_method = "+".join(methods_used)
             else:
                 return jsonify({'error': 'Unsupported format. Use JPG or PNG.'}), 400
 
-            if final_bytes is None:
-                raise RuntimeError("Compression failed and fallback did not produce a result.")
+            if final_bytes is None: raise RuntimeError("Compression failed and no fallback result was produced.")
 
             final_size = len(final_bytes)
             success = final_size <= target_size
+            reduction_percent = ((original_size - final_size) / original_size) * 100 if original_size > 0 else 0
+            app.logger.info(f"Final compression method: '{compression_method}'. Final size: {final_size} bytes. Reduction: {reduction_percent:.2f}%")
+            app.logger.info("--- Finished image compression request ---")
 
             if final_size < original_size:
-                track_usage('compressor', metadata={
-                    'file_type': ext.replace('.', '').upper(), 'original_size': original_size,
-                    'compressed_size': final_size, 'target_reduction': target_reduction,
-                    'method': compression_method
-                })
+                track_usage('compressor', metadata={'file_type': ext.replace('.', '').upper(), 'original_size': original_size, 'compressed_size': final_size, 'target_reduction': target_reduction, 'method': compression_method})
 
             filename = f"compressed_{os.path.splitext(file.filename)[0]}.{ext_out}"
             resp = send_file(io.BytesIO(final_bytes), mimetype=mimetype, as_attachment=True, download_name=filename)
-            resp.headers['X-Original-Size'] = str(original_size)
-            resp.headers['X-Compressed-Size'] = str(final_size)
-            resp.headers['X-Compression-Successful'] = str(success).lower()
-            resp.headers['X-Compression-Method'] = compression_method
+            resp.headers['X-Original-Size'], resp.headers['X-Compressed-Size'] = str(original_size), str(final_size)
+            resp.headers['X-Compression-Successful'], resp.headers['X-Compression-Method'] = str(success).lower(), compression_method
             return resp
 
         except subprocess.CalledProcessError as e:
-            app.logger.error(f"Compression tool failed. STDERR: {e.stderr.decode()}")
+            app.logger.error(f"Compression tool failed! STDERR: {e.stderr.decode()}")
             return jsonify({'error': 'The compression engine failed. The image may be corrupt or in an unsupported format.'}), 500
         except Exception as e:
+            app.logger.error(f"An unexpected server error occurred during compression: {e}")
             traceback.print_exc()
-            return jsonify({'error': f'An unexpected server error occurred during compression.'}), 500
-# END: MODIFIED COMPRESS IMAGE FUNCTION WITH FALLBACK
+            return jsonify({'error': 'An unexpected server error occurred during compression.'}), 500
+# END: DEBUGLOGGING FOR COMPRESS IMAGE
 
 
 @app.route('/download-image')
