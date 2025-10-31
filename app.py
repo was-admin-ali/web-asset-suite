@@ -1143,25 +1143,25 @@ def compress_image() -> FlaskResponse:
             elif ext == '.png':
                 img = Image.open(io.BytesIO(original_bytes))
                 has_transparency = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
-                
-                # --- START: NEW PHOTOGRAPHIC PNG CHECK ---
-                # Heuristic to detect if a PNG is photographic by counting its unique colors.
-                # A high number of colors suggests a photograph.
-                unique_colors = len(img.getcolors(maxcolors=256*256)) # Count up to a max of 65536 colors
-                is_photographic = unique_colors > 5000 # Threshold for what we consider a photo
-                app.logger.info(f"PNG detected. Unique colors: {unique_colors}. Is photographic: {is_photographic}. Has transparency: {has_transparency}")
+                app.logger.info(f"PNG detected. Mode: {img.mode}, Has transparency: {has_transparency}")
 
-                if is_photographic and not has_transparency and mozjpeg_path:
-                    app.logger.info("Photographic PNG detected. Converting to high-quality JPG for maximum efficiency.")
+                # --- START: NEW, MORE ROBUST PHOTOGRAPHIC PNG CHECK ---
+                # The best way to compress a photo saved as PNG is to convert it to JPG,
+                # as long as it doesn't need transparency. This is the single biggest optimization.
+                if not has_transparency and mozjpeg_path:
+                    app.logger.info("Non-transparent PNG detected. Converting to high-quality JPG for maximum efficiency.")
                     mimetype, ext_out, compression_method = 'image/jpeg', 'jpg', "png_to_jpg_conversion"
-                    rgb_img = img.convert('RGB')
+                    
+                    # Ensure image is in RGB format before saving as JPEG
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                        
                     output_buffer = io.BytesIO()
-                    # Use a relatively high quality for the conversion to preserve detail
-                    rgb_img.save(output_buffer, format='JPEG', quality=85, optimize=True)
+                    img.save(output_buffer, format='JPEG', quality=85, optimize=True)
                     final_bytes = output_buffer.getvalue()
-                # --- END: NEW PHOTOGRAPHIC PNG CHECK ---
+                # --- END: NEW, MORE ROBUST PHOTOGRAPHIC PNG CHECK ---
                 else:
-                    app.logger.info("Graphic/Transparent PNG detected. Applying PNG optimization pipeline.")
+                    app.logger.info("Graphic or transparent PNG detected. Applying PNG optimization pipeline.")
                     mimetype, ext_out = 'image/png', 'png'
                     input_path = os.path.join(temp_dir, "original.png")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
@@ -1170,9 +1170,7 @@ def compress_image() -> FlaskResponse:
                     if pngquant_path:
                         quant_path = os.path.join(temp_dir, "quantized.png")
                         quality_min, quality_max = max(0, 60 - target_reduction), max(10, 85 - target_reduction)
-                        # --- START: MORE AGGRESSIVE PNGQUANT COMMAND ---
                         cmd = [pngquant_path, '--force', '--skip-if-larger', f'--quality={quality_min}-{quality_max}', '--speed', '1', '--strip', '--output', quant_path, current_path]
-                        # --- END: MORE AGGRESSIVE PNGQUANT COMMAND ---
                         app.logger.info(f"Running pngquant command: {' '.join(cmd)}")
                         result = subprocess.run(cmd, capture_output=True)
                         app.logger.info(f"pngquant stdout: {result.stdout.decode()}")
