@@ -1108,9 +1108,13 @@ def compress_image() -> FlaskResponse:
     app.logger.info("--- Starting new image compression request ---")
     app.logger.info(f"Original file: {file.filename}, Size: {original_size} bytes")
 
-    mozjpeg_path = shutil.which("mozjpeg")
-    pngquant_path = shutil.which("pngquant")
-    oxipng_path = shutil.which("oxipng")
+    # --- START: DIRECT PATHS TO TOOLS ---
+    # This is the definitive fix. We use the absolute paths to the tools.
+    mozjpeg_path = "/usr/bin/mozjpeg" if os.path.exists("/usr/bin/mozjpeg") else None
+    pngquant_path = "/usr/bin/pngquant" if os.path.exists("/usr/bin/pngquant") else None
+    oxipng_path = "/usr/bin/oxipng" if os.path.exists("/usr/bin/oxipng") else None
+    # --- END: DIRECT PATHS TO TOOLS ---
+    
     app.logger.info(f"Tool paths found: mozjpeg='{mozjpeg_path}', pngquant='{pngquant_path}', oxipng='{oxipng_path}'")
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -1131,7 +1135,6 @@ def compress_image() -> FlaskResponse:
                     compression_method = "mozjpeg"
                     input_path, output_path = os.path.join(temp_dir, f"original{ext}"), os.path.join(temp_dir, f"compressed{ext}")
                     with open(input_path, 'wb') as f: f.write(original_bytes)
-                    # --- MORE AGGRESSIVE QUALITY CALCULATION ---
                     quality = max(40, 90 - int(target_reduction * 0.5))
                     cmd = [mozjpeg_path, "-quality", str(quality), "-outfile", output_path, input_path]
                     app.logger.info(f"Running mozjpeg command: {' '.join(cmd)}")
@@ -1145,21 +1148,14 @@ def compress_image() -> FlaskResponse:
                 has_transparency = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
                 app.logger.info(f"PNG detected. Mode: {img.mode}, Has transparency: {has_transparency}")
 
-                # --- START: NEW, MORE ROBUST PHOTOGRAPHIC PNG CHECK ---
-                # The best way to compress a photo saved as PNG is to convert it to JPG,
-                # as long as it doesn't need transparency. This is the single biggest optimization.
                 if not has_transparency and mozjpeg_path:
                     app.logger.info("Non-transparent PNG detected. Converting to high-quality JPG for maximum efficiency.")
                     mimetype, ext_out, compression_method = 'image/jpeg', 'jpg', "png_to_jpg_conversion"
-                    
-                    # Ensure image is in RGB format before saving as JPEG
                     if img.mode != 'RGB':
                         img = img.convert('RGB')
-                        
                     output_buffer = io.BytesIO()
                     img.save(output_buffer, format='JPEG', quality=85, optimize=True)
                     final_bytes = output_buffer.getvalue()
-                # --- END: NEW, MORE ROBUST PHOTOGRAPHIC PNG CHECK ---
                 else:
                     app.logger.info("Graphic or transparent PNG detected. Applying PNG optimization pipeline.")
                     mimetype, ext_out = 'image/png', 'png'
