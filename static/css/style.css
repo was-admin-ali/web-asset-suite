@@ -3676,80 +3676,99 @@ body.no-scroll {
     }
 }
 
-/* --- 39. IMAGE COMPARISON SLIDER (CORRECTED FOR RESPONSIVENESS) --- */
+/* --- 39. IMAGE COMPARISON SLIDER (FINAL CORRECTED VERSION) --- */
+
 .comparison-container {
+    /* This is an optional wrapper for the title, etc. */
     text-align: center;
     margin-bottom: 40px;
 }
 
 .img-comp-container {
-    position: relative;
+    position: relative; /* This is the positioning frame for all children */
     width: 100%;
-    max-width: 1000px;
+    max-width: 1000px; /* You can adjust this max-width as needed */
     margin: 0 auto;
-    overflow: hidden;
     border-radius: 12px;
     border: 1px solid var(--border-color);
-    background-color: var(--bg-primary); /* Add a background for letterboxing */
+    overflow: hidden; /* Hides the parts of the slider line that go off-screen */
 }
 
-/* This targets BOTH images for consistent, responsive styling */
-.img-comp-container img {
+/*
+This rule applies to the BASE image (the original image, the one at the bottom).
+It is the most important rule, as it responsively defines the container's
+size and aspect ratio based on the image itself.
+*/
+.img-comp-container > img {
     display: block;
     width: 100%;
-    height: auto; /* Let the image's aspect ratio define the height */
-    max-width: 100%;
-    /* KEY FIX 1: 'contain' ensures the whole image is visible without cropping */
-    object-fit: contain;
+    height: auto; /* Let the aspect ratio be natural */
 }
 
+/*
+The overlay DIV. It is positioned absolutely to cover the entire container.
+JavaScript will dynamically change its `width` to create the reveal effect.
+*/
 .img-comp-overlay {
     position: absolute;
     top: 0;
     left: 0;
-    height: 100%;
-    width: 50%; /* Start at 50%, JS will handle updates */
-    overflow: hidden; /* This creates the sliding effect */
+    height: 100%; /* Cover the full height of the container */
+    width: 50%;   /* Initial 50% width, controlled by JS */
+    overflow: hidden; /* This is the magic that "clips" the image inside */
 }
 
-/* KEY FIX 2: Ensures the overlay image is perfectly aligned on top of the base image */
+/*
+This is the KEY FIX: The image INSIDE the overlay must also be
+forced to fill the parent container, ignoring its immediate parent's (the overlay's) width.
+This ensures both images are the same size and perfectly aligned.
+*/
 .img-comp-overlay img {
+    display: block;
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%; /* 100% of the .img-comp-container, NOT the overlay */
+    height: 100%;
+    /* Use 'cover' if you want images to fill the box, 'contain' to show the whole image */
+    object-fit: cover;
+    /* This is important to override any other img styles that might limit the width */
+    max-width: none;
 }
 
 .img-comp-slider {
     position: absolute;
     z-index: 9;
-    cursor: ew-resize;
+    cursor: ew-resize; /* East-West resize cursor */
     width: 40px;
     height: 40px;
     background-color: var(--text-on-accent);
     border: 3px solid var(--accent-primary);
-    opacity: 0.8;
+    opacity: 0.9;
     border-radius: 50%;
     top: 50%;
-    /* Let JS handle the 'left' property */
-    transform: translateY(-50%); /* Only center vertically */
+    left: 50%; /* JS will update this on move */
+    transform: translate(-50%, -50%); /* Center the handle perfectly on the line */
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: opacity 0.2s ease;
 }
 
 .img-comp-slider:hover {
     opacity: 1;
 }
 
-/* This is the vertical line that goes through the handle */
-.img-comp-slider::after {
+/* The vertical line that runs through the handle */
+.img-comp-slider::before {
     content: '';
     position: absolute;
-    height: 100%;
     width: 3px;
+    height: 100vh; /* Make it super tall so it always fills the container */
+    top: -50vh;    /* Center it vertically */
     background-color: var(--accent-primary);
-    z-index: -1;
+    z-index: -1; /* Place it behind the arrow icon */
 }
 
 .slider-arrow {
@@ -3757,53 +3776,3 @@ body.no-scroll {
     font-weight: 800;
     font-size: 1.2rem;
 }
-
-/* --- START: MOBILE PALETTE GRID FIX --- */
-@media (max-width: 768px) {
-    /* Hide the original grid headers on mobile as they don't make sense in a list format */
-    #palette-results-grid .grid-header {
-        display: none;
-    }
-
-    /* Change the grid container to a simple block for vertical stacking */
-    #palette-results-grid {
-        display: block;
-        min-width: 0; /* Allow the container to be flexible */
-        gap: 0;
-    }
-
-    /* Hide the "Not Applicable" cells (e.g., white vs. white) */
-    #palette-results-grid .grid-cell.na {
-        display: none;
-    }
-
-    /* Restyle the result cells to look like list items */
-    #palette-results-grid .grid-cell.ratio-cell {
-        height: auto; /* Allow height to be flexible */
-        display: flex;
-        flex-direction: column; /* Stack the label and the ratio vertically */
-        align-items: flex-start; /* Align content to the left */
-        text-align: left;
-        padding: 15px;
-        margin-bottom: 10px; /* Add space between items */
-        border: 1px solid var(--border-color);
-    }
-
-    /* Use a pseudo-element to create a label showing which colors are being compared */
-    #palette-results-grid .grid-cell.ratio-cell::before {
-        content: attr(data-row-color) "  vs  " attr(data-col-color);
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: inherit; /* Inherit the high-contrast color (white or black) from the parent cell */
-        opacity: 0.85;  /* Make the label slightly less prominent than the main ratio number */
-        margin-bottom: 8px;
-        font-family: monospace; /* Use a monospaced font for hex codes */
-    }
-
-    /* Make the contrast ratio number larger and more prominent */
-    #palette-results-grid .grid-cell.ratio-cell {
-        font-size: 1.5rem; /* Larger font for the ratio */
-        font-weight: 800;
-    }
-}
-/* --- END: MOBILE PALETTE GRID FIX --- */
