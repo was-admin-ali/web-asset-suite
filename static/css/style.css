@@ -3676,70 +3676,55 @@ body.no-scroll {
     }
 }
 
-/* --- 39. IMAGE COMPARISON SLIDER (FINAL CORRECTED VERSION) --- */
+/* --- 39. IMAGE COMPARISON SLIDER (FINAL CSS) --- */
 
 .comparison-container {
-    /* This is an optional wrapper for the title, etc. */
     text-align: center;
     margin-bottom: 40px;
 }
 
 .img-comp-container {
-    position: relative; /* This is the positioning frame for all children */
+    position: relative;
     width: 100%;
-    max-width: 1000px; /* You can adjust this max-width as needed */
+    max-width: 1000px; /* Adjust as needed */
     margin: 0 auto;
     border-radius: 12px;
     border: 1px solid var(--border-color);
-    overflow: hidden; /* Hides the parts of the slider line that go off-screen */
+    overflow: hidden;
+    /* Removes whitespace issues if images are treated as inline elements */
+    font-size: 0;
 }
 
-/*
-This rule applies to the BASE image (the original image, the one at the bottom).
-It is the most important rule, as it responsively defines the container's
-size and aspect ratio based on the image itself.
-*/
+/* This is the BASE image (the one on the bottom) */
 .img-comp-container > img {
     display: block;
     width: 100%;
-    height: auto; /* Let the aspect ratio be natural */
+    height: auto;
 }
 
-/*
-The overlay DIV. It is positioned absolutely to cover the entire container.
-JavaScript will dynamically change its `width` to create the reveal effect.
-*/
+/* This is the OVERLAY div that gets resized by JS */
 .img-comp-overlay {
     position: absolute;
     top: 0;
     left: 0;
-    height: 100%; /* Cover the full height of the container */
-    width: 50%;   /* Initial 50% width, controlled by JS */
-    overflow: hidden; /* This is the magic that "clips" the image inside */
+    width: 50%; /* Initial width */
+    height: 100%;
+    overflow: hidden;
 }
 
-/*
-This is the KEY FIX: The image INSIDE the overlay must also be
-forced to fill the parent container, ignoring its immediate parent's (the overlay's) width.
-This ensures both images are the same size and perfectly aligned.
-*/
+/* The image INSIDE the overlay */
 .img-comp-overlay img {
     display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%; /* 100% of the .img-comp-container, NOT the overlay */
-    height: 100%;
-    /* Use 'cover' if you want images to fill the box, 'contain' to show the whole image */
-    object-fit: cover;
-    /* This is important to override any other img styles that might limit the width */
+    height: auto;
+    /* This is critical: prevent the image from ever being wider than the container */
     max-width: none;
 }
 
+/* Styling for the slider handle */
 .img-comp-slider {
     position: absolute;
     z-index: 9;
-    cursor: ew-resize; /* East-West resize cursor */
+    cursor: ew-resize;
     width: 40px;
     height: 40px;
     background-color: var(--text-on-accent);
@@ -3747,8 +3732,7 @@ This ensures both images are the same size and perfectly aligned.
     opacity: 0.9;
     border-radius: 50%;
     top: 50%;
-    left: 50%; /* JS will update this on move */
-    transform: translate(-50%, -50%); /* Center the handle perfectly on the line */
+    transform: translate(-50%, -50%); /* Center the handle perfectly */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3765,10 +3749,10 @@ This ensures both images are the same size and perfectly aligned.
     content: '';
     position: absolute;
     width: 3px;
-    height: 100vh; /* Make it super tall so it always fills the container */
-    top: -50vh;    /* Center it vertically */
+    height: 100vh; /* Make it very tall to always fill the container */
+    top: -50vh;
     background-color: var(--accent-primary);
-    z-index: -1; /* Place it behind the arrow icon */
+    z-index: -1;
 }
 
 .slider-arrow {
