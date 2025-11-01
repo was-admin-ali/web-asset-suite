@@ -3750,3 +3750,52 @@ body.no-scroll {
         height: 300px;
     }
 }
+
+/* --- START: MOBILE PALETTE GRID FIX --- */
+@media (max-width: 768px) {
+    /* Hide the original grid headers on mobile as they don't make sense in a list format */
+    #palette-results-grid .grid-header {
+        display: none;
+    }
+
+    /* Change the grid container to a simple block for vertical stacking */
+    #palette-results-grid {
+        display: block;
+        min-width: 0; /* Allow the container to be flexible */
+        gap: 0;
+    }
+
+    /* Hide the "Not Applicable" cells (e.g., white vs. white) */
+    #palette-results-grid .grid-cell.na {
+        display: none;
+    }
+
+    /* Restyle the result cells to look like list items */
+    #palette-results-grid .grid-cell.ratio-cell {
+        height: auto; /* Allow height to be flexible */
+        display: flex;
+        flex-direction: column; /* Stack the label and the ratio vertically */
+        align-items: flex-start; /* Align content to the left */
+        text-align: left;
+        padding: 15px;
+        margin-bottom: 10px; /* Add space between items */
+        border: 1px solid var(--border-color);
+    }
+
+    /* Use a pseudo-element to create a label showing which colors are being compared */
+    #palette-results-grid .grid-cell.ratio-cell::before {
+        content: attr(data-row-color) "  vs  " attr(data-col-color);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        font-family: monospace; /* Use a monospaced font for hex codes */
+    }
+
+    /* Make the contrast ratio number larger and more prominent */
+    #palette-results-grid .grid-cell.ratio-cell {
+        font-size: 1.5rem; /* Larger font for the ratio */
+        font-weight: 800;
+    }
+}
+/* --- END: MOBILE PALETTE GRID FIX --- */

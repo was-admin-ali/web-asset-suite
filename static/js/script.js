@@ -744,6 +744,8 @@ function initPaletteChecker() {
             resultsGrid.appendChild(rowHeader);
             colors.forEach(colColor => {
                 const cell = document.createElement('div');
+                cell.dataset.rowColor = rowColor;
+                cell.dataset.colColor = colColor;
                 if (rowColor === colColor) {
                     cell.className = 'grid-cell na';
                     cell.textContent = '–';
