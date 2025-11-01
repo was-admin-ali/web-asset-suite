@@ -517,20 +517,29 @@ function initImageCompressorPage() {
                 compressionStatusMessage.textContent = 'Could not meet target. Max compression applied.';
             }
 
-            // Create object URLs for the previews
             const originalUrl = URL.createObjectURL(originalFile);
             const compressedUrl = URL.createObjectURL(blob);
 
             originalPreview.src = originalUrl;
             compressedPreview.src = compressedUrl;
             downloadBtn.href = compressedUrl;
+
+            // --- START: NEW DYNAMIC ASPECT RATIO FIX ---
+            originalPreview.onload = () => {
+                const container = document.querySelector('.img-comp-container');
+                if (container) {
+                    const aspectRatio = originalPreview.naturalWidth / originalPreview.naturalHeight;
+                    container.style.aspectRatio = `${aspectRatio}`;
+                }
+                initComparisons();
+            };
+            // --- END: NEW DYNAMIC ASPECT RATIO FIX ---
             
             const disposition = response.headers.get('Content-Disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
             downloadBtn.download = filenameMatch ? filenameMatch[1] : 'compressed-image';
             
             resultsContainer.classList.remove('hidden');
-            initComparisons(); // Initialize the comparison slider
 
         } catch (error) {
             showCompressError(error.message);
