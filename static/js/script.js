@@ -564,19 +564,18 @@ function initComparisons() {
 
         const getCursorPos = (e) => {
             const a = container.getBoundingClientRect();
-            // Use clientX which works for both mouse and touch events relative to the viewport
             const x = e.touches ? e.touches[0].clientX : e.clientX;
             return x - a.left;
         };
         
         const slide = (x) => {
             overlay.style.width = x + "px";
-            slider.style.left = overlay.offsetWidth - (slider.offsetWidth / 2) + "px";
+            slider.style.left = x - (slider.offsetWidth / 2) + "px";
         };
 
         const slideMove = (e) => {
             if (clicked == 0) return false;
-            e.preventDefault(); // Prevent scrolling while sliding
+            e.preventDefault(); 
             let pos = getCursorPos(e);
             if (pos < 0) pos = 0;
             if (pos > container.offsetWidth) pos = container.offsetWidth;
@@ -585,15 +584,13 @@ function initComparisons() {
 
         const slideFinish = () => {
             clicked = 0;
-            // Remove listeners to stop tracking mouse/touch movement
             window.removeEventListener("mousemove", slideMove);
             window.removeEventListener("touchmove", slideMove);
         };
 
         const slideReady = (e) => {
-            e.preventDefault(); // Prevents unwanted default actions like text selection
+            e.preventDefault(); 
             clicked = 1;
-            // Add listeners to the window to track movement anywhere on the page
             window.addEventListener("mousemove", slideMove);
             window.addEventListener("touchmove", slideMove, { passive: false });
         };

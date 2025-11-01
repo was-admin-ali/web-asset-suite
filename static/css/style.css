@@ -3683,7 +3683,7 @@ body.no-scroll {
 }
 .img-comp-container {
     position: relative;
-    height: 500px; /* Adjust as needed */
+    aspect-ratio: 2 / 1; /* MODIFIED: Use responsive aspect ratio instead of fixed height */
     max-width: 1000px; /* Adjust as needed */
     margin: 0 auto;
     overflow: hidden;
@@ -3692,17 +3692,21 @@ body.no-scroll {
 }
 .img-comp-img {
     position: absolute;
-    width: auto;
-    height: auto;
+    width: 100%; /* MODIFIED: Make wrapper fill the container */
+    height: 100%; /* MODIFIED: Make wrapper fill the container */
     overflow: hidden;
+    top: 0; /* ADDED: Ensure proper stacking */
+    left: 0; /* ADDED: Ensure proper stacking */
 }
 .img-comp-img img {
     display: block;
-    /* vertical-align: middle;  <-- REMOVED THIS LINE */
-    width: 1000px;
-    height: 500px;
+    width: 100%; /* MODIFIED: Make image fill its wrapper */
+    height: 100%; /* MODIFIED: Make image fill its wrapper */
     max-width: none;
-    object-fit: cover;
+    object-fit: contain; /* MODIFIED: 'contain' ensures the whole image is visible */
+    position: absolute; /* ADDED: Crucial for object-fit and stacking */
+    top: 0; /* ADDED: Align image within its container */
+    left: 0; /* ADDED: Align image within its container */
 }
 .img-comp-overlay {
     height: 100%;
@@ -3746,8 +3750,8 @@ body.no-scroll {
 }
 
 @media (max-width: 768px) {
-    .img-comp-container, .img-comp-img img {
-        height: 300px;
+    .img-comp-container {
+        aspect-ratio: 16 / 10; /* MODIFIED: Use a taller aspect ratio for mobile */
     }
 }
 
