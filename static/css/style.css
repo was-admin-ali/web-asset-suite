@@ -34,7 +34,16 @@ body {
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    
+    /* --- START: GLOBAL MOBILE OVERFLOW FIX --- */
+    /* These rules ensure that long, unbreakable strings (like URLs)
+       are forced to wrap, preventing horizontal scrolling on mobile. */
+    overflow-wrap: break-word;
+    word-wrap: break-word; /* Legacy fallback for older browsers */
+    word-break: break-word; /* A more aggressive fallback if the others fail */
+    /* --- END: GLOBAL MOBILE OVERFLOW FIX --- */
 }
+    
 
 .container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
 
