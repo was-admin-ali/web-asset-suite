@@ -419,16 +419,8 @@ function initImageCompressorPage() {
     const compressForm = document.getElementById('compress-form');
     if (!compressForm) return;
 
-    // Load the library dynamically
-    const libScript = document.createElement('script');
-    libScript.src = 'https://unpkg.com/image-compare-viewer@1.5.8/dist/image-compare-viewer.min.js';
-    document.head.appendChild(libScript);
-
-    const libCss = document.createElement('link');
-    libCss.rel = 'stylesheet';
-    libCss.href = 'https://unpkg.com/image-compare-viewer@1.5.8/dist/image-compare-viewer.min.css';
-    document.head.appendChild(libCss);
-
+    // NOTE: The dynamic script loading has been REMOVED from here.
+    // The library is now loaded statically in base.html.
 
     const imageInput = document.getElementById('image-input');
     const fileUploadArea = document.getElementById('file-upload-area');
@@ -440,10 +432,8 @@ function initImageCompressorPage() {
     const compressedSizeEl = document.getElementById('compressed-size');
     const reductionPercentEl = document.getElementById('reduction-percent');
     
-    // START: MODIFICATION - Get the new container
     const compareContainer = document.getElementById('image-compare-container');
-    // END: MODIFICATION
-
+    
     const downloadBtn = document.getElementById('download-btn');
     const compressionStatusMessage = document.getElementById('compression-status-message');
     const qualityContainer = document.getElementById('quality-container');
@@ -508,6 +498,9 @@ function initImageCompressorPage() {
             showCompressError('Please select an image to compress.');
             return;
         }
+        
+        // Hide previous errors when submitting
+        errorContainer.classList.add('hidden');
 
         const formData = new FormData();
         formData.append('image', originalFile);
@@ -517,7 +510,6 @@ function initImageCompressorPage() {
 
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
-        errorContainer.classList.add('hidden');
         if (compressionStatusMessage) compressionStatusMessage.textContent = '';
         
         try {
@@ -545,34 +537,26 @@ function initImageCompressorPage() {
                 compressionStatusMessage.textContent = 'Could not reduce file size further.';
             }
 
-            // --- START: NEW SLIDER INITIALIZATION LOGIC ---
             const originalUrl = URL.createObjectURL(originalFile);
             const compressedUrl = URL.createObjectURL(blob);
             
-            // Clear previous slider instance if it exists
             if (compareViewer) {
                 compareViewer.destroy();
             }
-            compareContainer.innerHTML = ''; // Clear container content
+            compareContainer.innerHTML = '';
             
-            // Define options for the viewer
             const options = {
-                // UI Theme
                 controlColor: '#FFFFFF',
                 controlShadow: true,
                 addCircle: true,
-                
-                // Labels
                 beforeLabel: 'Original',
                 afterLabel: 'Compressed'
             };
             
-            // Create and mount the new viewer
             compareViewer = new ImageCompare(compareContainer, options).mount();
             compareViewer.setImages(originalUrl, compressedUrl);
 
             downloadBtn.href = compressedUrl;
-            // --- END: NEW SLIDER INITIALIZATION LOGIC ---
             
             const disposition = response.headers.get('Content-Disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
