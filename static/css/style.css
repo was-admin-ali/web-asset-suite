@@ -3800,3 +3800,49 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
+
+/* --- 10.5 IMAGE COMPARISON SLIDER --- */
+.comparison-container {
+    margin-bottom: 40px;
+}
+
+#image-compare-container {
+    max-width: 800px;
+    margin: 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+}
+
+.image-compare-viewer {
+    --divider-width: 3px;
+    --divider-color: var(--accent-primary);
+    --handle-size: 44px;
+    --handle-color: var(--bg-secondary);
+    --handle-border-color: var(--accent-primary);
+    --handle-border-width: 3px;
+    --handle-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.image-compare-handle {
+    box-shadow: var(--handle-shadow);
+}
+
+.image-compare-handle-icon {
+    stroke: var(--accent-primary);
+    stroke-width: 2px;
+    width: 24px;
+    height: 24px;
+}
+
+.image-compare-label {
+    background-color: rgba(17, 17, 17, 0.7);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
