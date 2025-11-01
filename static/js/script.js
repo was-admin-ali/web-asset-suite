@@ -517,29 +517,20 @@ function initImageCompressorPage() {
                 compressionStatusMessage.textContent = 'Could not meet target. Max compression applied.';
             }
 
+            // Create object URLs for the previews
             const originalUrl = URL.createObjectURL(originalFile);
             const compressedUrl = URL.createObjectURL(blob);
 
             originalPreview.src = originalUrl;
             compressedPreview.src = compressedUrl;
             downloadBtn.href = compressedUrl;
-
-            // --- START: NEW DYNAMIC ASPECT RATIO FIX ---
-            originalPreview.onload = () => {
-                const container = document.querySelector('.img-comp-container');
-                if (container) {
-                    const aspectRatio = originalPreview.naturalWidth / originalPreview.naturalHeight;
-                    container.style.aspectRatio = `${aspectRatio}`;
-                }
-                initComparisons();
-            };
-            // --- END: NEW DYNAMIC ASPECT RATIO FIX ---
             
             const disposition = response.headers.get('Content-Disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
             downloadBtn.download = filenameMatch ? filenameMatch[1] : 'compressed-image';
             
             resultsContainer.classList.remove('hidden');
+            initComparisons(); // Initialize the comparison slider
 
         } catch (error) {
             showCompressError(error.message);
@@ -553,6 +544,7 @@ function initImageCompressorPage() {
 // --- START: NEW IMAGE COMPARISON SLIDER LOGIC ---
 function initComparisons() {
     const containers = document.getElementsByClassName("img-comp-container");
+    // For each container, create a slider and add event listeners
     for (let i = 0; i < containers.length; i++) {
         compareImages(containers[i]);
     }
@@ -560,55 +552,55 @@ function initComparisons() {
     function compareImages(container) {
         let clicked = 0;
         const overlay = container.getElementsByClassName("img-comp-overlay")[0];
-
+        
+        // Remove existing slider if it exists to prevent duplicates
         const existingSlider = container.getElementsByClassName("img-comp-slider")[0];
         if (existingSlider) {
             existingSlider.remove();
         }
 
+        // Create slider
         const slider = document.createElement("DIV");
         slider.setAttribute("class", "img-comp-slider");
         slider.innerHTML = "<span class='slider-arrow'>&#10231;</span>";
         overlay.parentElement.insertBefore(slider, overlay);
 
-        const getCursorPos = (e) => {
-            const a = container.getBoundingClientRect();
-            const x = e.touches ? e.touches[0].clientX : e.clientX;
-            return x - a.left;
+        // Positioning function
+        const slideReady = (e) => {
+            e.preventDefault();
+            clicked = 1;
+            window.addEventListener("mousemove", slideMove);
+            window.addEventListener("touchmove", slideMove);
         };
-        
-        const slide = (x) => {
-            overlay.style.width = x + "px";
-            slider.style.left = x - (slider.offsetWidth / 2) + "px";
+        const slideFinish = () => {
+            clicked = 0;
         };
-
         const slideMove = (e) => {
             if (clicked == 0) return false;
-            e.preventDefault(); 
             let pos = getCursorPos(e);
             if (pos < 0) pos = 0;
             if (pos > container.offsetWidth) pos = container.offsetWidth;
             slide(pos);
         };
-
-        const slideFinish = () => {
-            clicked = 0;
-            window.removeEventListener("mousemove", slideMove);
-            window.removeEventListener("touchmove", slideMove);
+        const getCursorPos = (e) => {
+            e = e || window.event;
+            const a = container.getBoundingClientRect();
+            let x = e.pageX - a.left;
+            x = x - window.pageXOffset;
+            return x;
+        };
+        const slide = (x) => {
+            overlay.style.width = x + "px";
+            slider.style.left = overlay.offsetWidth - (slider.offsetWidth / 2) + "px";
         };
 
-        const slideReady = (e) => {
-            e.preventDefault(); 
-            clicked = 1;
-            window.addEventListener("mousemove", slideMove);
-            window.addEventListener("touchmove", slideMove, { passive: false });
-        };
-
+        // Add event listeners
         slider.addEventListener("mousedown", slideReady);
         window.addEventListener("mouseup", slideFinish);
-        slider.addEventListener("touchstart", slideReady, { passive: false });
+        slider.addEventListener("touchstart", slideReady);
         window.addEventListener("touchend", slideFinish);
         
+        // Set initial position
         slide(container.offsetWidth / 2);
     }
 }
