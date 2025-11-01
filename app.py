@@ -1090,6 +1090,63 @@ def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float,
 # --- END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
 
 
+# --- START: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float, original_size: int) -> Optional[bytes]:
+    """Fallback compression using Pillow if external tools are missing."""
+    try:
+        img_buffer = io.BytesIO(image_bytes)
+        img = Image.open(img_buffer)
+
+        if img.mode in ('P', 'PA'):
+            img = img.convert('RGBA' if file_ext == '.png' else 'RGB')
+        elif img.mode not in ('RGB', 'RGBA', 'L'):
+             img = img.convert('RGB')
+
+        output_buffer = io.BytesIO()
+
+        if file_ext in ['.jpg', '.jpeg']:
+            best_bytes = None
+            for quality in range(85, 39, -5):
+                output_buffer.seek(0)
+                output_buffer.truncate(0)
+                img.save(output_buffer, format='JPEG', quality=quality, optimize=True)
+                current_bytes = output_buffer.getvalue()
+                if len(current_bytes) <= target_size:
+                    best_bytes = current_bytes
+                    break
+                if best_bytes is None or len(current_bytes) < len(best_bytes):
+                    best_bytes = current_bytes
+            return best_bytes
+
+        elif file_ext == '.png':
+            # --- START: INTELLIGENT PNG FALLBACK (QUALITY FOCUSED) ---
+            has_transparency = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+            
+            # If it's a photo-like PNG without transparency, convert to high-quality JPG for the best result.
+            if not has_transparency:
+                app.logger.info("Pillow fallback: Non-transparent PNG detected, converting to quality-85 JPEG.")
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                jpeg_buffer = io.BytesIO()
+                img.save(jpeg_buffer, format='JPEG', quality=85, optimize=True)
+                return jpeg_buffer.getvalue()
+            
+            # If it has transparency, it's likely a graphic. Use quantization but with higher quality settings.
+            else:
+                app.logger.info("Pillow fallback: Transparent PNG detected, using quantization.")
+                quantized_img = img.quantize(colors=256, method=Image.Quantize.LIBIMAGEQUANT)
+                quantized_buffer = io.BytesIO()
+                quantized_img.save(quantized_buffer, format='PNG', optimize=True)
+                return quantized_buffer.getvalue()
+            # --- END: INTELLIGENT PNG FALLBACK ---
+
+        return None
+    except Exception as e:
+        app.logger.error(f"Pillow fallback compression failed: {e}")
+        return image_bytes
+# --- END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+
+
 # START: DEBUGLOGGING FOR COMPRESS IMAGE
 @app.route('/compress-image', methods=['POST'])
 @csrf.exempt
@@ -1103,17 +1160,14 @@ def compress_image() -> FlaskResponse:
     original_bytes = file.read()
     original_size = len(original_bytes)
     if original_size > MAX_FILE_SIZE:
-        return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 413
-    
+        return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB'}), 403
+
     app.logger.info("--- Starting new image compression request ---")
     app.logger.info(f"Original file: {file.filename}, Size: {original_size} bytes")
 
-    # --- START: DIRECT PATHS TO TOOLS ---
-    # This is the definitive fix. We use the absolute paths to the tools.
     mozjpeg_path = "/usr/bin/mozjpeg" if os.path.exists("/usr/bin/mozjpeg") else None
     pngquant_path = "/usr/bin/pngquant" if os.path.exists("/usr/bin/pngquant") else None
     oxipng_path = "/usr/bin/oxipng" if os.path.exists("/usr/bin/oxipng") else None
-    # --- END: DIRECT PATHS TO TOOLS ---
     
     app.logger.info(f"Tool paths found: mozjpeg='{mozjpeg_path}', pngquant='{pngquant_path}', oxipng='{oxipng_path}'")
 
@@ -1165,7 +1219,14 @@ def compress_image() -> FlaskResponse:
 
                     if pngquant_path:
                         quant_path = os.path.join(temp_dir, "quantized.png")
-                        quality_min, quality_max = max(0, 60 - target_reduction), max(10, 85 - target_reduction)
+                        
+                        # --- START: NEW QUALITY-FOCUSED SETTINGS ---
+                        # Map the slider (0-90) to a safe quality range (e.g., 98 down to 65)
+                        # This prevents the tool from destroying the image quality.
+                        quality_min = max(65, 100 - target_reduction)
+                        quality_max = 98
+                        # --- END: NEW QUALITY-FOCUSED SETTINGS ---
+
                         cmd = [pngquant_path, '--force', '--skip-if-larger', f'--quality={quality_min}-{quality_max}', '--speed', '1', '--strip', '--output', quant_path, current_path]
                         app.logger.info(f"Running pngquant command: {' '.join(cmd)}")
                         result = subprocess.run(cmd, capture_output=True)
