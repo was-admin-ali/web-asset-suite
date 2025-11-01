@@ -23,19 +23,19 @@
 }
 /* --- 2. GLOBAL STYLES & RESETS --- */
 *, *::before, *::after { box-sizing: border-box; }
+
+/* --- START: THE DEFINITIVE OVERFLOW FIX --- */
+/* This is the most powerful rule to prevent horizontal scrolling.
+   It forces the entire document to stay within the viewport width. */
+html, body {
+    width: 100%;
+    overflow-x: hidden;
+}
+/* --- END: THE DEFINITIVE OVERFLOW FIX --- */
+
 html { 
     scroll-behavior: smooth; 
 }
-
-/* --- START: GLOBAL OVERFLOW SAFETY NET --- */
-/* This rule acts as a failsafe, preventing any element from
-   stretching the page wider than the screen and causing
-   unwanted horizontal scrolling on any device. */
-body {
-    overflow-x: hidden;
-}
-/* --- END: GLOBAL OVERFLOW SAFETY NET --- */
-
 body {
     font-family: 'Manrope', sans-serif;
     background-color: var(--bg-primary);
@@ -44,14 +44,7 @@ body {
     transition: background-color 0.3s, color 0.3s;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    
-    /* --- START: GLOBAL MOBILE OVERFLOW FIX --- */
-    /* These rules ensure that long, unbreakable strings (like URLs)
-       are forced to wrap, preventing horizontal scrolling on mobile. */
-    overflow-wrap: break-word;
-    word-wrap: break-word; /* Legacy fallback for older browsers */
-    word-break: break-word; /* A more aggressive fallback if the others fail */
-    /* --- END: GLOBAL MOBILE OVERFLOW FIX --- */
+    word-wrap: break-word; /* Redundant but safe fallback */
 }
     
 
@@ -121,18 +114,6 @@ p { line-height: 1.6; margin: 1em 0 0 0; }
     justify-content: center;
     margin: 0 30px;
 }
-/* --- START: MOBILE HEADER OVERFLOW FIX --- */
-/* On smaller screens, remove the rigid horizontal margin from the nav
-   and allow it to shrink, preventing it from pushing other elements
-   and causing a page overflow. */
-@media (max-width: 992px) {
-    .main-nav {
-        margin: 0 15px; /* Reduce margin */
-        min-width: 0;   /* Allow the nav container to shrink */
-    }
-}
-/* --- END: MOBILE HEADER OVERFLOW FIX --- */
-
 .main-nav a {
     color: #111827;
     font-weight: 500;
