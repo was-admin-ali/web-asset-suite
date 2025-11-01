@@ -541,9 +541,10 @@ function initImageCompressorPage() {
 }
 // --- END: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 
-// --- START: CORRECTED IMAGE COMPARISON SLIDER LOGIC (FINAL VERSION) ---
+// --- START: NEW IMAGE COMPARISON SLIDER LOGIC ---
 function initComparisons() {
     const containers = document.getElementsByClassName("img-comp-container");
+    // For each container, create a slider and add event listeners
     for (let i = 0; i < containers.length; i++) {
         compareImages(containers[i]);
     }
@@ -552,15 +553,6 @@ function initComparisons() {
         let clicked = 0;
         const overlay = container.getElementsByClassName("img-comp-overlay")[0];
         
-        // --- START: NEW LINE TO FIX ALIGNMENT ---
-        // This is the critical fix: Force the image inside the overlay to be the same width as the container.
-        const overlayImg = overlay.getElementsByTagName("IMG")[0];
-        if (overlayImg) {
-            overlayImg.style.width = container.offsetWidth + 'px';
-        }
-        // --- END: NEW LINE TO FIX ALIGNMENT ---
-
-
         // Remove existing slider if it exists to prevent duplicates
         const existingSlider = container.getElementsByClassName("img-comp-slider")[0];
         if (existingSlider) {
@@ -578,18 +570,13 @@ function initComparisons() {
             e.preventDefault();
             clicked = 1;
             window.addEventListener("mousemove", slideMove);
-            window.addEventListener("touchmove", slideMove, { passive: false });
+            window.addEventListener("touchmove", slideMove);
         };
         const slideFinish = () => {
             clicked = 0;
-            window.removeEventListener("mousemove", slideMove);
-            window.removeEventListener("touchmove", slideMove);
         };
         const slideMove = (e) => {
             if (clicked == 0) return false;
-            if (e.type === 'touchmove') {
-                e.preventDefault();
-            }
             let pos = getCursorPos(e);
             if (pos < 0) pos = 0;
             if (pos > container.offsetWidth) pos = container.offsetWidth;
@@ -598,8 +585,7 @@ function initComparisons() {
         const getCursorPos = (e) => {
             e = e || window.event;
             const a = container.getBoundingClientRect();
-            let x = (e.touches) ? e.touches[0].pageX : e.pageX;
-            x = x - a.left;
+            let x = e.pageX - a.left;
             x = x - window.pageXOffset;
             return x;
         };
@@ -618,7 +604,7 @@ function initComparisons() {
         slide(container.offsetWidth / 2);
     }
 }
-// --- END: CORRECTED IMAGE COMPARISON SLIDER LOGIC (FINAL VERSION) ---
+// --- END: NEW IMAGE COMPARISON SLIDER LOGIC ---
 
 function initContrastChecker() {
     const contrastPage = document.getElementById('contrast-checker-page');
