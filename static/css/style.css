@@ -24,6 +24,19 @@
 /* --- 2. GLOBAL STYLES & RESETS --- */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* --- START: THE DEFINITIVE OVERFLOW FIX --- */
+/* This is the most powerful rule to prevent horizontal scrolling.
+   It forces the entire document to stay within the viewport width. */
+html {
+    width: 100%;
+    overflow-x: hidden;
+}
+body {
+    width: 100%;
+    /* overflow-x: hidden; <-- THIS LINE IS REMOVED */
+}
+/* --- END: THE DEFINITIVE OVERFLOW FIX --- */
+
 html { 
     scroll-behavior: smooth; 
 }
@@ -36,8 +49,6 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     word-wrap: break-word; /* Redundant but safe fallback */
-    overflow-x: clip; /* THIS IS THE KEY FIX */
-    overflow-x: hidden; /* Fallback for older browsers */
 }
     
 
@@ -983,7 +994,9 @@ section {
 .hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
-
+body.no-scroll {
+    overflow: hidden;
+}
 .mobile-nav-actions {
     display: flex;
     gap: 15px;
@@ -1068,10 +1081,6 @@ section {
     #fonts-list { columns: 1; }
     .features-grid { grid-template-columns: repeat(2, 1fr); }
     .testimonial-grid { grid-template-columns: 1fr; }
-
-    body.no-scroll {
-        overflow: hidden;
-    }
 
 /* --- START: Sticky Mobile Header --- */
 .main-header {
@@ -3228,9 +3237,6 @@ section {
     }
     .post-header-image {
         order: -1; /* Move image above text on mobile */
-    }
-    body.no-scroll {
-        overflow: hidden;
     }
 }
 @media (max-width: 768px) {
