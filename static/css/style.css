@@ -3801,7 +3801,7 @@ body.no-scroll {
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
 
-/* --- 40. CUSTOM CURSOR STYLES (REVISED) --- */
+/* --- 40. CUSTOM CURSOR STYLES (FINAL VISIBILITY FIX) --- */
 /* Forcefully hide the default cursor on interactive elements to prevent the double-cursor bug */
 body, a, button, .btn, [style*="cursor: pointer"] {
     cursor: none !important;
@@ -3812,16 +3812,16 @@ body, a, button, .btn, [style*="cursor: pointer"] {
     left: 0;
     top: 0;
     pointer-events: none;
-    z-index: 9999; /* Highest z-index to stay on top of all elements */
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Smooth scaling effect */
+    z-index: 9999;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .custom-cursor svg {
     width: 32px;
     height: 32px;
-    color: var(--accent-primary);
-    /* This offset aligns the tip of the SVG with the actual mouse position */
-    transform: translate(-4px, -4px); 
+    color: #ffffff; /* CHANGE 1: Set the base color to white */
+    mix-blend-mode: difference; /* CHANGE 2: This inverts the color against the background */
+    transform: translate(-4px, -4px);
 }
 
 .cursor-follow-blur {
@@ -3829,14 +3829,14 @@ body, a, button, .btn, [style*="cursor: pointer"] {
     left: 0;
     top: 0;
     pointer-events: none;
-    z-index: 9998; /* Just behind the main cursor */
+    z-index: 9998;
     width: 50px;
     height: 50px;
-    background-color: var(--accent-primary);
+    background-color: #ffffff; /* CHANGE 3: Also set the blur to white */
     border-radius: 50%;
-    opacity: 0.1;
+    opacity: 0.2; /* Slightly increased opacity for better effect */
     filter: blur(15px);
-    /* This transition creates the smooth trailing effect */
+    mix-blend-mode: difference; /* CHANGE 4: Apply the same effect to the blur */
     transition: transform 0.2s ease-out;
 }
 
