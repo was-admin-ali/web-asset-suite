@@ -1070,7 +1070,7 @@ function initScrollAnimations() {
     });
 }
 
-// --- FINAL: JS-BASED ADAPTIVE CUSTOM CURSOR ---
+// --- REVISED: CUSTOM CURSOR LOGIC ---
 function initCustomCursor() {
     const mainCursor = document.querySelector(".custom-cursor");
     const followCursor = document.querySelector(".cursor-follow-blur");
@@ -1079,55 +1079,24 @@ function initCustomCursor() {
         return;
     }
 
-    let lastCheckedBg = null;
-
     document.addEventListener("mousemove", function (e) {
         const { clientX, clientY } = e;
 
-        // Use requestAnimationFrame for smoother rendering
         requestAnimationFrame(() => {
-            // Position the cursors
             mainCursor.style.transform = `translate(${clientX}px, ${clientY}px)`;
-            followCursor.style.transform = `translate(${clientX - 25}px, ${clientY - 25}px)`;
-
-            // Check the background color of the element under the cursor
-            const elementUnderCursor = document.elementFromPoint(clientX, clientY);
-            if (elementUnderCursor) {
-                // Get the computed background color
-                const bgColor = window.getComputedStyle(elementUnderCursor).backgroundColor;
-
-                // Only perform the check if the background color has changed to avoid unnecessary calculations
-                if (bgColor !== lastCheckedBg) {
-                    lastCheckedBg = bgColor;
-                    
-                    // Extract RGB values
-                    const rgb = bgColor.match(/\d+/g);
-                    if (rgb && rgb.length >= 3) {
-                        // Calculate brightness (0 = black, 255 = white)
-                        const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
-                        
-                        // If the background is light (brightness > 140), add the class to the body
-                        // Otherwise, remove it
-                        if (brightness > 140) {
-                            document.body.classList.add('cursor-on-light');
-                        } else {
-                            document.body.classList.remove('cursor-on-light');
-                        }
-                    }
-                }
-            }
-
-            // Handle the scaling effect on interactive elements
-            const target = e.target;
-            if (
-                target.matches('a') ||
-                target.matches('button') ||
-                target.closest('.btn') ||
-                target.style.cursor === 'pointer'
-            ) {
-                mainCursor.style.transform = `translate(${clientX}px, ${clientY}px) scale(1.5)`;
-            }
+            followCursor.style.transform = `translate(${clientX - 20}px, ${clientY - 20}px)`; // Adjusted offset for smaller blur
         });
+
+        const target = e.target;
+        if (
+            target.matches('a') ||
+            target.matches('button') ||
+            target.closest('.btn') ||
+            target.style.cursor === 'pointer'
+        ) {
+            // CHANGED: Reduced scale from 1.5 to 1.2 for a more subtle effect
+            mainCursor.style.transform = `translate(${clientX}px, ${clientY}px) scale(1.2)`;
+        }
     });
 }
 

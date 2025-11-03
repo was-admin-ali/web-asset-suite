@@ -3799,8 +3799,9 @@ body.no-scroll {
         font-weight: 800;
     }
 }
-/* --- 40. CUSTOM CURSOR STYLES (WHITE WITH BLACK STROKE) --- */
-/* Forcefully hide the default cursor to prevent the double-cursor bug */
+
+/* --- 40. CUSTOM CURSOR STYLES (FINAL REFINEMENT) --- */
+/* Forcefully hide the default cursor */
 body, a, button, .btn, [style*="cursor: pointer"] {
     cursor: none !important;
 }
@@ -3812,17 +3813,15 @@ body, a, button, .btn, [style*="cursor: pointer"] {
     pointer-events: none;
     z-index: 9999;
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* NEW: Define the cursor colors using variables */
+    --cursor-fill: #FFFFFF;
+    --cursor-stroke: #111827;
 }
 
 .custom-cursor svg {
     width: 32px;
     height: 32px;
-    color: #FFFFFF; /* CHANGED: Set the fill color to white */
-    /* NEW: This creates a clean 1px black outline around the SVG shape */
-    filter: drop-shadow(1px 0 0 #111827) 
-            drop-shadow(-1px 0 0 #111827) 
-            drop-shadow(0 1px 0 #111827) 
-            drop-shadow(0 -1px 0 #111827);
+    /* We no longer need filter or color properties here */
     transform: translate(-4px, -4px); 
 }
 
@@ -3832,14 +3831,12 @@ body, a, button, .btn, [style*="cursor: pointer"] {
     top: 0;
     pointer-events: none;
     z-index: 9998;
-    width: 50px;
-    height: 50px;
-    /* CHANGED: Switched to a neutral, semi-transparent dark blur */
-    background-color: rgba(17, 24, 39, 0.15); 
+    width: 40px; /* REFINED: Slightly smaller blur */
+    height: 40px;
+    background-color: rgba(17, 24, 39, 0.1); /* REFINED: More subtle blur color */
     border-radius: 50%;
-    opacity: 1; /* Opacity is now controlled by the background-color's alpha */
-    filter: blur(15px);
-    transition: transform 0.2s ease-out;
+    filter: blur(10px); /* REFINED: Less intense blur */
+    transition: transform 0.25s ease-out; /* REFINED: A slightly slower, smoother trail */
 }
 
 /* Hide custom cursor on mobile/touch devices */
