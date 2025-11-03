@@ -3800,3 +3800,44 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
+
+/* --- 40. CUSTOM CURSOR STYLES --- */
+.custom-cursor-dot,
+.custom-cursor-circle {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+}
+
+.custom-cursor-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-primary);
+    border-radius: 50%;
+}
+
+.custom-cursor-circle {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--accent-primary);
+    border-radius: 50%;
+    transition: transform 0.3s ease, background-color 0.3s ease, opacity 0.3s ease;
+}
+
+.custom-cursor-circle.hover {
+    transform: translate(-50%, -50%) scale(1.5);
+    background-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+.custom-cursor-circle.click {
+    transform: translate(-50%, -50%) scale(0.8);
+}
+
+
+/* Hide the default cursor on the body and interactive elements */
+body, a, button, .btn, input, textarea, [role="button"], label[for], .image-item {
+    cursor: none;
+}

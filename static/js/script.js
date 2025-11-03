@@ -1070,6 +1070,45 @@ function initScrollAnimations() {
     });
 }
 
+// --- START: NEW CUSTOM CURSOR FUNCTION ---
+function initCustomCursor() {
+    const cursorDot = document.querySelector('.custom-cursor-dot');
+    const cursorCircle = document.querySelector('.custom-cursor-circle');
+
+    if (!cursorDot || !cursorCircle) return;
+
+    // Move cursor to mouse position
+    window.addEventListener('mousemove', e => {
+        cursorDot.style.left = `${e.clientX}px`;
+        cursorDot.style.top = `${e.clientY}px`;
+        cursorCircle.style.left = `${e.clientX}px`;
+        cursorCircle.style.top = `${e.clientY}px`;
+    });
+
+    // Add hover effect on interactive elements
+    const interactiveElements = document.querySelectorAll(
+        'a, button, .btn, input, textarea, [role="button"], label[for], .image-item, .action-btn, .color-box, .get-font-btn, .filter-btn, .share-icon-link'
+    );
+
+    interactiveElements.forEach(el => {
+        el.addEventListener('mouseenter', () => {
+            cursorCircle.classList.add('hover');
+        });
+        el.addEventListener('mouseleave', () => {
+            cursorCircle.classList.remove('hover');
+        });
+    });
+    
+    // Add click effect
+    document.addEventListener('mousedown', () => {
+        cursorCircle.classList.add('click');
+    });
+    document.addEventListener('mouseup', () => {
+        cursorCircle.classList.remove('click');
+    });
+}
+// --- END: NEW CUSTOM CURSOR FUNCTION ---
+
 
 // --- MAIN EXECUTION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1088,4 +1127,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initTocScrollspy();
     initUsageLimitModal(); // NEW
     initScrollAnimations();
+    initCustomCursor(); // ADDED THIS LINE
 });
