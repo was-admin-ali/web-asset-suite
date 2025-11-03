@@ -3801,44 +3801,52 @@ body.no-scroll {
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
 
-/* --- 40. CUSTOM CURSOR STYLES --- */
-body {
-    cursor: none; /* Hide the default system cursor */
+/* --- 40. CUSTOM CURSOR STYLES (REVISED) --- */
+/* Forcefully hide the default cursor on interactive elements to prevent the double-cursor bug */
+body, a, button, .btn, [style*="cursor: pointer"] {
+    cursor: none !important;
 }
 
-.cursor-dot,
-.cursor-outline {
-    pointer-events: none;
+.custom-cursor {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    opacity: 1;
-    z-index: 9999;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 9999; /* Highest z-index to stay on top of all elements */
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Smooth scaling effect */
 }
 
-.cursor-dot {
-    width: 8px;
-    height: 8px;
+.custom-cursor svg {
+    width: 32px;
+    height: 32px;
+    color: var(--accent-primary);
+    /* This offset aligns the tip of the SVG with the actual mouse position */
+    transform: translate(-4px, -4px); 
+}
+
+.cursor-follow-blur {
+    position: fixed;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 9998; /* Just behind the main cursor */
+    width: 50px;
+    height: 50px;
     background-color: var(--accent-primary);
+    border-radius: 50%;
+    opacity: 0.1;
+    filter: blur(15px);
+    /* This transition creates the smooth trailing effect */
+    transition: transform 0.2s ease-out;
 }
 
-.cursor-outline {
-    width: 40px;
-    height: 40px;
-    background-color: rgba(74, 105, 255, 0.2); /* Use accent color with transparency */
-    transition: transform 0.1s ease-out; /* Faster trail effect */
-}
-
-/* Hide custom cursor on mobile/touch devices */
+/* Hide custom cursor on mobile/touch devices where it's not needed */
 @media (max-width: 768px) {
-    body {
-        cursor: auto; /* Restore the default cursor */
+    body, a, button, .btn, [style*="cursor: pointer"] {
+        cursor: auto !important; /* Restore the default cursor on mobile */
     }
-    .cursor-dot,
-    .cursor-outline {
+    .custom-cursor,
+    .cursor-follow-blur {
         display: none;
     }
 }

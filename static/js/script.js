@@ -1070,36 +1070,38 @@ function initScrollAnimations() {
     });
 }
 
-// --- NEW: CUSTOM CURSOR LOGIC ---
+// --- REVISED: CUSTOM CURSOR LOGIC ---
 function initCustomCursor() {
-    const cursorDot = document.querySelector(".cursor-dot");
-    const cursorOutline = document.querySelector(".cursor-outline");
+    const mainCursor = document.querySelector(".custom-cursor");
+    const followCursor = document.querySelector(".cursor-follow-blur");
 
-    // Only run if the cursor elements exist
-    if (!cursorDot || !cursorOutline) {
+    // Exit if the elements don't exist
+    if (!mainCursor || !followCursor) {
         return;
     }
 
-    window.addEventListener("mousemove", function (e) {
-        const posX = e.clientX;
-        const posY = e.clientY;
+    document.addEventListener("mousemove", function (e) {
+        const { clientX, clientY } = e;
 
-        // Move the dot immediately
-        cursorDot.style.left = `${posX}px`;
-        cursorDot.style.top = `${posY}px`;
+        // Use requestAnimationFrame for smoother performance
+        requestAnimationFrame(() => {
+            // The main SVG cursor moves instantly to the mouse position
+            mainCursor.style.transform = `translate(${clientX}px, ${clientY}px)`;
 
-        // Move the outline with a slight delay for the trail effect
-        cursorOutline.style.left = `${posX}px`;
-        cursorOutline.style.top = `${posY}px`;
+            // The blurred follower is positioned with an offset to center it and will lag behind due to its CSS transition
+            followCursor.style.transform = `translate(${clientX - 25}px, ${clientY - 25}px)`;
+        });
 
-        // Animate the outline on hover
+        // Add a scaling effect when hovering over interactive elements
         const target = e.target;
-        if (target.matches('a') || target.matches('button') || target.closest('.btn') || target.closest('input[type="checkbox"]')) {
-            cursorOutline.style.transform = 'translate(-50%, -50%) scale(1.5)';
-            cursorOutline.style.backgroundColor = 'rgba(74, 105, 255, 0.3)';
-        } else {
-            cursorOutline.style.transform = 'translate(-50%, -50%) scale(1)';
-            cursorOutline.style.backgroundColor = 'rgba(74, 105, 255, 0.2)';
+        if (
+            target.matches('a') ||
+            target.matches('button') ||
+            target.closest('.btn') ||
+            target.style.cursor === 'pointer' // A generic check for any element with a pointer cursor
+        ) {
+            // Apply scale effect to the existing transform
+            mainCursor.style.transform = `translate(${clientX}px, ${clientY}px) scale(1.5)`;
         }
     });
 }
