@@ -3799,54 +3799,50 @@ body.no-scroll {
         font-weight: 800;
     }
 }
-/* --- 40. CUSTOM CURSOR STYLES (JS-BASED VISIBILITY FIX) --- */
-/* Forcefully hide the default cursor everywhere */
+/* --- 40. CUSTOM CURSOR STYLES (WHITE WITH BLACK STROKE) --- */
+/* Forcefully hide the default cursor to prevent the double-cursor bug */
 body, a, button, .btn, [style*="cursor: pointer"] {
     cursor: none !important;
 }
 
-.custom-cursor,
-.cursor-follow-blur {
+.custom-cursor {
     position: fixed;
     left: 0;
     top: 0;
     pointer-events: none;
     z-index: 9999;
-}
-
-.custom-cursor {
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .custom-cursor svg {
     width: 32px;
     height: 32px;
-    color: #FFFFFF; /* Default color is white for dark backgrounds */
-    transform: translate(-4px, -4px);
-    transition: color 0.3s ease; /* Add a smooth transition for color changes */
+    color: #FFFFFF; /* CHANGED: Set the fill color to white */
+    /* NEW: This creates a clean 1px black outline around the SVG shape */
+    filter: drop-shadow(1px 0 0 #111827) 
+            drop-shadow(-1px 0 0 #111827) 
+            drop-shadow(0 1px 0 #111827) 
+            drop-shadow(0 -1px 0 #111827);
+    transform: translate(-4px, -4px); 
 }
 
 .cursor-follow-blur {
+    position: fixed;
+    left: 0;
+    top: 0;
+    pointer-events: none;
     z-index: 9998;
     width: 50px;
     height: 50px;
-    background-color: #FFFFFF; /* Default color is white */
+    /* CHANGED: Switched to a neutral, semi-transparent dark blur */
+    background-color: rgba(17, 24, 39, 0.15); 
     border-radius: 50%;
-    opacity: 0.15;
+    opacity: 1; /* Opacity is now controlled by the background-color's alpha */
     filter: blur(15px);
-    transition: transform 0.2s ease-out, background-color 0.3s ease; /* Also transition the blur color */
+    transition: transform 0.2s ease-out;
 }
 
-/* This is the new class that JavaScript will toggle */
-body.cursor-on-light .custom-cursor svg {
-    color: #111827; /* Solid dark color for light backgrounds */
-}
-
-body.cursor-on-light .cursor-follow-blur {
-    background-color: #111827; /* Solid dark color for the blur */
-}
-
-/* Media query for mobile remains the same */
+/* Hide custom cursor on mobile/touch devices */
 @media (max-width: 768px) {
     body, a, button, .btn, [style*="cursor: pointer"] {
         cursor: auto !important;
