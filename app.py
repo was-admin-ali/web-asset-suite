@@ -321,6 +321,13 @@ def init_db_command():
     db.create_all()
     print("Initialized the database.")
 
+# --- START: THE FIX IS HERE ---
+@app.context_processor
+def inject_now():
+    """Injects the current UTC datetime into all templates."""
+    return {'now': datetime.utcnow()}
+# --- END: THE FIX IS HERE ---
+
 @app.context_processor
 def inject_ga_id():
     return dict(GA_MEASUREMENT_ID=os.environ.get('GA_MEASUREMENT_ID'))
@@ -1026,69 +1033,6 @@ def handle_extraction_request() -> FlaskResponse:
         if "net::ERR_NAME_NOT_RESOLVED" in error_message:
             return jsonify({'error': 'The domain name could not be found. Please check the URL.'}), 500
         return jsonify({'error': f'An unexpected server error occurred: {e}'}), 500
-
-# --- START: NEW HELPER FUNCTION FOR PILLOW FALLBACK
-def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float, original_size: int) -> Optional[bytes]:
-    """Fallback compression using Pillow if external tools are missing."""
-    try:
-        img_buffer = io.BytesIO(image_bytes)
-        img = Image.open(img_buffer)
-
-        # Ensure image is in a compatible mode
-        if img.mode in ('P', 'PA'):
-            img = img.convert('RGBA' if file_ext == '.png' else 'RGB')
-        elif img.mode not in ('RGB', 'RGBA', 'L'):
-             img = img.convert('RGB')
-
-        output_buffer = io.BytesIO()
-
-        if file_ext in ['.jpg', '.jpeg']:
-            best_bytes = None
-            # Try a range of qualities to meet the target
-            for quality in range(85, 39, -5): # Lowered the minimum quality to 40
-                output_buffer.seek(0)
-                output_buffer.truncate(0)
-                img.save(output_buffer, format='JPEG', quality=quality, optimize=True)
-                current_bytes = output_buffer.getvalue()
-                # If we hit the target size, we're done
-                if len(current_bytes) <= target_size:
-                    best_bytes = current_bytes
-                    break
-                # Otherwise, keep the smallest result so far
-                if best_bytes is None or len(current_bytes) < len(best_bytes):
-                    best_bytes = current_bytes
-            return best_bytes
-
-        elif file_ext == '.png':
-            # --- START: ADVANCED PNG FALLBACK ---
-            # This is a powerful technique that significantly reduces PNG size
-            # by reducing the number of colors, similar to pngquant.
-            quantized_img = img.quantize(colors=256, method=Image.Quantize.LIBIMAGEQUANT)
-            quantized_buffer = io.BytesIO()
-            # We save and then read back to get the final compressed size
-            quantized_img.save(quantized_buffer, format='PNG', optimize=True)
-            quantized_bytes = quantized_buffer.getvalue()
-
-            # For comparison, also run the basic optimization
-            basic_buffer = io.BytesIO()
-            img.save(basic_buffer, format='PNG', optimize=True)
-            basic_bytes = basic_buffer.getvalue()
-
-            # Return whichever result is smaller
-            if len(quantized_bytes) < len(basic_bytes):
-                app.logger.info("Pillow fallback: Quantization was more effective.")
-                return quantized_bytes
-            else:
-                app.logger.info("Pillow fallback: Basic optimization was more effective.")
-                return basic_bytes
-            # --- END: ADVANCED PNG FALLBACK ---
-
-        return None
-    except Exception as e:
-        app.logger.error(f"Pillow fallback compression failed: {e}")
-        return image_bytes
-# --- END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
-
 
 # --- START: NEW HELPER FUNCTION FOR PILLOW FALLBACK
 def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float, original_size: int) -> Optional[bytes]:
