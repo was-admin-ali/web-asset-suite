@@ -4,47 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Web Asset Suite{% endblock %}</title>
+    
+    <!-- Fonts and Styles -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.9">
-
-    <!-- FAVICON LINKS -->
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Favicon Links -->
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" sizes="any">
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
-
-    <!-- DYNAMIC GOOGLE FONT LINK FOR EXTRACTOR -->
-    <link id="dynamic-google-fonts" rel="stylesheet" href="">
-    <!-- DYNAMIC GOOGLE FONT LINK FOR PAIRINGS -->
-    <link id="font-pairing-google-font" rel="stylesheet" href="">
-
-    <!-- THEME FIX SCRIPT -->
+    
+    <!-- Theme Persistence Script -->
     <script>
-        const storedTheme = localStorage.getItem('theme');
-        const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        const theme = storedTheme || preferredTheme;
-        document.documentElement.setAttribute('data-theme', theme);
+        const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', savedTheme);
     </script>
 </head>
 <body data-is-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
 
+    <!-- Main Header -->
     <header class="main-header">
         <div class="container">
             <div class="logo">
                 <a href="{{ url_for('home') }}">
-                    <img src="{{ url_for('static', filename='img/logo-light-theme.svg') }}" alt="Logo" class="logo-light">
-                    <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Logo" class="logo-dark">
+                    <img src="{{ url_for('static', filename='img/logo-light-theme.svg') }}" alt="Logo Light" class="logo-light">
+                    <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Logo Dark" class="logo-dark">
                 </a>
             </div>
+
+            <!-- Desktop Navigation -->
             <nav class="main-nav">
-                 <a href="{{ url_for('home') }}">Home</a>
-                 <div class="nav-item">
-                    <span class="dropdown-toggle">
+                <a href="{{ url_for('home') }}">Home</a>
+                <div class="nav-item">
+                     <span class="dropdown-toggle">
                         Tools
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                     </span>
                     <div class="dropdown-content">
                         <a href="{{ url_for('extractor_page') }}">Asset Extractor</a>
@@ -54,102 +50,97 @@
                     </div>
                 </div>
                 <a href="{{ url_for('blog_list') }}">Blog</a>
-                <a href="{{ url_for('about_page') }}">About</a>
                 <a href="{{ url_for('contact_page') }}">Contact</a>
             </nav>
+
+            <!-- Desktop Header Actions -->
             <div class="header-actions">
-                <button class="theme-toggle-btn" id="theme-toggle" aria-label="Toggle theme">
-                     <img src="{{ url_for('static', filename='img/sun.svg') }}" alt="Light mode" class="sun-icon">
-                     <img src="{{ url_for('static', filename='img/moon.svg') }}" alt="Dark mode" class="moon-icon">
-                </button>
                 {% if current_user.is_authenticated %}
-                    {% if current_user.is_admin %}
-                         <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Admin</a>
-                    {% endif %}
                     <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
                 {% else %}
-                    <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign In</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign in</a>
                     <a href="{{ url_for('register') }}" class="btn btn-primary">Try for free</a>
                 {% endif %}
-                <button class="hamburger-btn" id="hamburger-btn" aria-label="Open menu" aria-expanded="false">
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                <button class="theme-toggle-btn" id="theme-toggle">
+                    <img src="{{ url_for('static', filename='img/sun.svg') }}" alt="Light mode" class="sun-icon">
+                    <img src="{{ url_for('static', filename='img/moon.svg') }}" alt="Dark mode" class="moon-icon">
                 </button>
             </div>
+            
+            <!-- Mobile Navigation Toggle -->
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </div>
     </header>
 
+    <!-- Main Content Block -->
     <main>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="container">
-                    {% for category, message in messages %}
-                        <div class="flash-message {{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
         {% block content %}{% endblock %}
     </main>
-
-    <!-- REVISED MOBILE NAVIGATION MENU -->
-    <nav class="mobile-nav" id="mobile-nav">
-        <div class="mobile-nav-logo">
-            <a href="{{ url_for('home') }}">
-                <img src="{{ url_for('static', filename='img/logo-light-theme.svg') }}" alt="Logo" class="logo-light">
-                <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Logo" class="logo-dark">
-            </a>
-        </div>
-
-        <div class="mobile-nav-links">
-            <a href="{{ url_for('home') }}" class="mobile-nav-link">Home</a>
-            <a href="{{ url_for('extractor_page') }}" class="mobile-nav-link">Asset Extractor</a>
-            <a href="{{ url_for('compressor_page') }}" class="mobile-nav-link">Image Compressor</a>
-            <a href="{{ url_for('contrast_checker_page') }}" class="mobile-nav-link">Contrast Checker</a>
-            <a href="{{ url_for('font_pairings_page') }}" class="mobile-nav-link">Font Pairings</a>
-            <a href="{{ url_for('blog_list') }}" class="mobile-nav-link">Blog</a>
-            <a href="{{ url_for('contact_page') }}" class="mobile-nav-link">Contact</a>
-        </div>
-
-        <div class="mobile-nav-actions">
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary mobile-nav-btn">Logout</a>
-            {% else %}
-                <a href="{{ url_for('login') }}" class="btn btn-secondary mobile-nav-btn">Sign in</a>
-                <a href="{{ url_for('register') }}" class="btn btn-primary mobile-nav-btn">Try for free</a>
-            {% endif %}
-        </div>
-    </nav>
-
-    <!-- MODALS -->
-    <div id="image-modal" class="image-modal">
-        <span class="modal-close-btn" id="modal-close-btn">&times;</span>
-        <img class="modal-image" id="modal-image" src="" alt="Enlarged view">
-    </div>
     
+    <!-- START: MODAL PLACEHOLDERS (needed for some pages) -->
+    <!-- Image Modal -->
+    <div id="image-modal" class="image-modal">
+        <span id="modal-close-btn" class="modal-close-btn">&times;</span>
+        <img class="modal-image" id="modal-image" src="">
+    </div>
+
+    <!-- Usage Limit Modal -->
     <div id="usage-limit-modal" class="usage-limit-modal">
         <div class="usage-limit-modal-content">
-            <span class="modal-close-btn" id="usage-limit-close-btn">&times;</span>
+            <span id="usage-limit-close-btn" class="modal-close-btn">&times;</span>
             <h3>Usage Limit Reached</h3>
-            <p>You've reached the usage limit for free, anonymous access. Please create a free account to continue using our tools without limits.</p>
-            <div style="display: flex; gap: 15px; margin-top: 25px; justify-content: center;">
-                <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign In</a>
+            <p>You've reached the free usage limit for anonymous users. Please create a free account to continue using our tools without limits.</p>
+            <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: center;">
                 <a href="{{ url_for('register') }}" class="btn btn-primary">Create Free Account</a>
+                <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
             </div>
         </div>
     </div>
+    <!-- END: MODAL PLACEHOLDERS -->
+
+    <!-- Mobile Navigation Menu -->
+    <nav class="mobile-nav" id="mobile-nav">
+        <a href="{{ url_for('home') }}" class="mobile-nav-link">Home</a>
+        <a href="{{ url_for('extractor_page') }}" class="mobile-nav-link">Asset Extractor</a>
+        <a href="{{ url_for('compressor_page') }}" class="mobile-nav-link">Image Compressor</a>
+        <a href="{{ url_for('contrast_checker_page') }}" class="mobile-nav-link">Contrast Checker</a>
+        <a href="{{ url_for('font_pairings_page') }}" class="mobile-nav-link">Font Pairings</a>
+        <a href="{{ url_for('blog_list') }}" class="mobile-nav-link">Blog</a>
+        <a href="{{ url_for('contact_page') }}" class="mobile-nav-link">Contact</a>
+        
+        <div class="mobile-auth-actions">
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="btn btn-secondary">Sign in</a>
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Try for free</a>
+        {% endif %}
+        </div>
+    </nav>
     
-    <!-- FOOTER -->
-    <footer class="advanced-footer fade-in-section">
+    <!-- Advanced Footer -->
+    <footer class="advanced-footer">
         <div class="container">
             <div class="footer-top">
                 <div class="footer-brand">
                     <a href="{{ url_for('home') }}" class="logo">
-                        <img src="{{ url_for('static', filename='img/logo-light-theme.svg') }}" alt="Logo" class="logo-light">
-                        <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Logo" class="logo-dark">
+                         <img src="{{ url_for('static', filename='img/logo-light-theme.svg') }}" alt="Logo Light" class="logo-light" style="height: 35px;">
+                         <img src="{{ url_for('static', filename='img/logo-dark-theme.svg') }}" alt="Logo Dark" class="logo-dark" style="height: 35px;">
                     </a>
                     <p>The ultimate free toolkit for web creators, designed to speed up your workflow.</p>
                 </div>
@@ -165,27 +156,37 @@
                 <div class="footer-links">
                     <h4>Company</h4>
                     <ul>
-                        <li><a href="{{ url_for('about_page') }}">About</a></li>
+                        <li><a href="{{ url_for('about_page') }}">About Us</a></li>
                         <li><a href="{{ url_for('blog_list') }}">Blog</a></li>
                         <li><a href="{{ url_for('contact_page') }}">Contact</a></li>
                     </ul>
                 </div>
-                 <div class="footer-links">
-                    <h4>Legal</h4>
-                    <ul>
-                        <li><a href="{{ url_for('terms_page') }}">Terms of Service</a></li>
-                        <li><a href="{{ url_for('privacy_page') }}">Privacy Policy</a></li>
-                        <li><a href="{{ url_for('disclaimer_page') }}">Disclaimer</a></li>
-                    </ul>
+                <div class="footer-subscribe-wrapper">
+                    <div class="footer-subscribe">
+                        <h4>Stay Updated</h4>
+                        <p>Get notified when we launch new tools and features.</p>
+                        <form class="footer-subscribe-form" method="POST" action="{{ url_for('subscribe') }}">
+                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                             <input type="email" name="email" placeholder="Enter your email" required>
+                             <button type="submit" aria-label="Subscribe">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M3.105 3.105a2.5 2.5 0 013.536 0L10 6.536l3.359-3.431a2.5 2.5 0 013.536 3.536L13.536 10l3.431 3.359a2.5 2.5 0 01-3.536 3.536L10 13.464l-3.359 3.431a2.5 2.5 0 01-3.536-3.536L6.536 10 3.105 6.641a2.5 2.5 0 010-3.536z" /></svg>
+                             </button>
+                        </form>
+                    </div>
                 </div>
             </div>
             <div class="footer-bottom">
                 <p class="copyright">&copy; {{ now.year }} Web Asset Suite. All Rights Reserved.</p>
+                <div class="footer-links" style="text-align: right;">
+                    <a href="{{ url_for('privacy_page') }}" style="margin-right: 15px;">Privacy Policy</a>
+                    <a href="{{ url_for('terms_page') }}">Terms of Service</a>
+                </div>
             </div>
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}?v=1.9"></script>
-
+    <!-- DYNAMIC FONT LINK FOR PAIRING GENERATOR -->
+    <link id="font-pairing-google-font" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
