@@ -21,46 +21,32 @@
     --border-color: #E5E7EB;
     --shadow-color: rgba(0, 0, 0, 0.05);
 }
-/* --- 2. GLOBAL STYLES & RESETS --- */
-*, *::before, *::after { box-sizing: border-box; }
-
-/* --- START: THE DEFINITIVE OVERFLOW FIX --- */
-/* This is the most powerful rule to prevent horizontal scrolling.
-   It forces the entire document to stay within the viewport width. */
-html, body {
-    width: 100%;
-    overflow-x: hidden;
-}
-/* --- END: THE DEFINITIVE OVERFLOW FIX --- */
-
-html { 
-    scroll-behavior: smooth; 
-}
-body {
-    font-family: 'Manrope', sans-serif;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    margin: 0;
-    transition: background-color 0.3s, color 0.3s;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    word-wrap: break-word; /* Redundant but safe fallback */
-}
-    
-/* --- START: CUSTOM CURSOR STYLES --- */
-/* Note: You must create the cursor image files and place them in the '/static/img/cursors/' directory. */
+/* --- START: CUSTOM CURSOR STYLES (CORRECTED) --- */
+/*
+  IMPORTANT: 
+  1. This code now includes hotspot coordinates (e.g., "10 2") to tell the browser where the clickable point of the cursor is. You may need to adjust these numbers slightly to perfectly match your SVG design.
+  2. For this to work, your cursor files MUST be named in all lowercase with hyphens, as shown below.
+*/
 
 /* 1. Default Arrow Cursor */
+/* The hotspot is set to 10px from the left and 2px from the top. */
 html, body {
-    cursor: url('/static/img/cursors/Arrow_Cursor.svg'), auto;
+    cursor: url('/static/img/cursors/arrow-cursor.svg') 10 2, auto;
 }
 
 /* 2. Pointer (Hand) Cursor for interactive elements */
+/* The hotspot is set to 13px from the left and 2px from the top. */
 a, button, .btn, [role="button"], input[type="submit"], input[type="checkbox"], .image-item, .color-box, .action-btn, .theme-toggle-btn, .dropdown-toggle, .hamburger-btn, .file-upload-area, #swap-colors-btn, .ql-toolbar button, .filter-btn, .color-input-swatch, .remove-color-btn, .ql-picker-label, .ql-picker-item {
-    cursor: url('/static/img/cursors/Pointing_Hand_Cursor.svg'), pointer;
+    cursor: url('/static/img/cursors/pointing-hand-cursor.svg') 13 2, pointer;
 }
 
-/* 3. I-beam Text Cursor for text inputs */
+/* 3. Closed Hand (Grabbing) Cursor for the active/clicked state */
+a:active, button:active, .btn:active, [role="button"]:active, input[type="submit"]:active, input[type="checkbox"]:active, .image-item:active, .color-box:active, .action-btn:active, .theme-toggle-btn:active, .hamburger-btn:active, #swap-colors-btn:active, .ql-toolbar button:active {
+    cursor: url('/static/img/cursors/closed-hand-cursor.svg') 13 2, grabbing;
+}
+
+/* 4. I-beam Text Cursor for text inputs */
+/* The hotspot is set to the middle (16px from left) and top (2px). */
 input[type="text"], 
 input[type="email"], 
 input[type="password"], 
@@ -71,21 +57,15 @@ textarea,
 .footer-subscribe-form input,
 .color-input-hex,
 .ql-editor {
-    cursor: url('/static/img/cursors/Text_Cursor.svg'), text;
+    cursor: url('/static/img/cursors/text-cursor.svg') 16 2, text;
 }
 
-/* 4. Move (Four-way Arrow) Cursor for draggable items */
+/* 5. Move (Four-way Arrow) Cursor for draggable items */
+/* The hotspot is set to the center of the image. */
 .draggable, .img-comp-slider {
-    cursor: url('/static/img/cursors/Closed_Hand_Cursor.svg'), move;
+    cursor: url('/static/img/cursors/closed-hand-cursor.svg') 13 2, move;
 }
 /* --- END: CUSTOM CURSOR STYLES --- */
-
-
-.container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
-
-a { color: inherit; text-decoration: none; }
-h1, h2, h3, h4 { font-weight: 800; margin: 0; line-height: 1.2; }
-p { line-height: 1.6; margin: 1em 0 0 0; }
 
 /* --- 3. REUSABLE COMPONENTS (Buttons, etc.) --- */
 .btn { display: inline-block; font-weight: 700; border-radius: 50px; padding: 12px 28px; border: none; cursor: pointer; transition: transform 0.2s ease, filter 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; font-size: 1rem; }
