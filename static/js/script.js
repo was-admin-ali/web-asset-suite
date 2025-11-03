@@ -1070,39 +1070,64 @@ function initScrollAnimations() {
     });
 }
 
-// --- REVISED: CUSTOM CURSOR LOGIC ---
+// --- FINAL: JS-BASED ADAPTIVE CUSTOM CURSOR ---
 function initCustomCursor() {
     const mainCursor = document.querySelector(".custom-cursor");
     const followCursor = document.querySelector(".cursor-follow-blur");
 
-    // Exit if the elements don't exist
     if (!mainCursor || !followCursor) {
         return;
     }
 
+    let lastCheckedBg = null;
+
     document.addEventListener("mousemove", function (e) {
         const { clientX, clientY } = e;
 
-        // Use requestAnimationFrame for smoother performance
+        // Use requestAnimationFrame for smoother rendering
         requestAnimationFrame(() => {
-            // The main SVG cursor moves instantly to the mouse position
+            // Position the cursors
             mainCursor.style.transform = `translate(${clientX}px, ${clientY}px)`;
-
-            // The blurred follower is positioned with an offset to center it and will lag behind due to its CSS transition
             followCursor.style.transform = `translate(${clientX - 25}px, ${clientY - 25}px)`;
-        });
 
-        // Add a scaling effect when hovering over interactive elements
-        const target = e.target;
-        if (
-            target.matches('a') ||
-            target.matches('button') ||
-            target.closest('.btn') ||
-            target.style.cursor === 'pointer' // A generic check for any element with a pointer cursor
-        ) {
-            // Apply scale effect to the existing transform
-            mainCursor.style.transform = `translate(${clientX}px, ${clientY}px) scale(1.5)`;
-        }
+            // Check the background color of the element under the cursor
+            const elementUnderCursor = document.elementFromPoint(clientX, clientY);
+            if (elementUnderCursor) {
+                // Get the computed background color
+                const bgColor = window.getComputedStyle(elementUnderCursor).backgroundColor;
+
+                // Only perform the check if the background color has changed to avoid unnecessary calculations
+                if (bgColor !== lastCheckedBg) {
+                    lastCheckedBg = bgColor;
+                    
+                    // Extract RGB values
+                    const rgb = bgColor.match(/\d+/g);
+                    if (rgb && rgb.length >= 3) {
+                        // Calculate brightness (0 = black, 255 = white)
+                        const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+                        
+                        // If the background is light (brightness > 140), add the class to the body
+                        // Otherwise, remove it
+                        if (brightness > 140) {
+                            document.body.classList.add('cursor-on-light');
+                        } else {
+                            document.body.classList.remove('cursor-on-light');
+                        }
+                    }
+                }
+            }
+
+            // Handle the scaling effect on interactive elements
+            const target = e.target;
+            if (
+                target.matches('a') ||
+                target.matches('button') ||
+                target.closest('.btn') ||
+                target.style.cursor === 'pointer'
+            ) {
+                mainCursor.style.transform = `translate(${clientX}px, ${clientY}px) scale(1.5)`;
+            }
+        });
     });
 }
 
