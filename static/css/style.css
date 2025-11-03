@@ -47,6 +47,39 @@ body {
     word-wrap: break-word; /* Redundant but safe fallback */
 }
     
+/* --- START: CUSTOM CURSOR STYLES --- */
+/* Note: You must create the cursor image files and place them in the '/static/img/cursors/' directory. */
+
+/* 1. Default Arrow Cursor */
+html, body {
+    cursor: url('/static/img/cursors/Arrow_Cursor.svg'), auto;
+}
+
+/* 2. Pointer (Hand) Cursor for interactive elements */
+a, button, .btn, [role="button"], input[type="submit"], input[type="checkbox"], .image-item, .color-box, .action-btn, .theme-toggle-btn, .dropdown-toggle, .hamburger-btn, .file-upload-area, #swap-colors-btn, .ql-toolbar button, .filter-btn, .color-input-swatch, .remove-color-btn, .ql-picker-label, .ql-picker-item {
+    cursor: url('/static/img/cursors/Pointing_Hand_Cursor.svg'), pointer;
+}
+
+/* 3. I-beam Text Cursor for text inputs */
+input[type="text"], 
+input[type="email"], 
+input[type="password"], 
+textarea, 
+[contenteditable="true"],
+.ProseMirror, 
+.auth-input, 
+.footer-subscribe-form input,
+.color-input-hex,
+.ql-editor {
+    cursor: url('/static/img/cursors/Text_Cursor.svg'), text;
+}
+
+/* 4. Move (Four-way Arrow) Cursor for draggable items */
+.draggable, .img-comp-slider {
+    cursor: url('/static/img/cursors/Closed_Hand_Cursor.svg'), move;
+}
+/* --- END: CUSTOM CURSOR STYLES --- */
+
 
 .container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
 
