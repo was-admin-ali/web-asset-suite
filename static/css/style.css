@@ -3800,3 +3800,45 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
+
+/* --- 40. CUSTOM CURSOR STYLES --- */
+body {
+    cursor: none; /* Hide the default system cursor */
+}
+
+.cursor-dot,
+.cursor-outline {
+    pointer-events: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    opacity: 1;
+    z-index: 9999;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.cursor-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-primary);
+}
+
+.cursor-outline {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(74, 105, 255, 0.2); /* Use accent color with transparency */
+    transition: transform 0.1s ease-out; /* Faster trail effect */
+}
+
+/* Hide custom cursor on mobile/touch devices */
+@media (max-width: 768px) {
+    body {
+        cursor: auto; /* Restore the default cursor */
+    }
+    .cursor-dot,
+    .cursor-outline {
+        display: none;
+    }
+}

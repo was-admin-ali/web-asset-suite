@@ -1070,6 +1070,39 @@ function initScrollAnimations() {
     });
 }
 
+// --- NEW: CUSTOM CURSOR LOGIC ---
+function initCustomCursor() {
+    const cursorDot = document.querySelector(".cursor-dot");
+    const cursorOutline = document.querySelector(".cursor-outline");
+
+    // Only run if the cursor elements exist
+    if (!cursorDot || !cursorOutline) {
+        return;
+    }
+
+    window.addEventListener("mousemove", function (e) {
+        const posX = e.clientX;
+        const posY = e.clientY;
+
+        // Move the dot immediately
+        cursorDot.style.left = `${posX}px`;
+        cursorDot.style.top = `${posY}px`;
+
+        // Move the outline with a slight delay for the trail effect
+        cursorOutline.style.left = `${posX}px`;
+        cursorOutline.style.top = `${posY}px`;
+
+        // Animate the outline on hover
+        const target = e.target;
+        if (target.matches('a') || target.matches('button') || target.closest('.btn') || target.closest('input[type="checkbox"]')) {
+            cursorOutline.style.transform = 'translate(-50%, -50%) scale(1.5)';
+            cursorOutline.style.backgroundColor = 'rgba(74, 105, 255, 0.3)';
+        } else {
+            cursorOutline.style.transform = 'translate(-50%, -50%) scale(1)';
+            cursorOutline.style.backgroundColor = 'rgba(74, 105, 255, 0.2)';
+        }
+    });
+}
 
 // --- MAIN EXECUTION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1088,4 +1121,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initTocScrollspy();
     initUsageLimitModal(); // NEW
     initScrollAnimations();
+    initCustomCursor();
 });
