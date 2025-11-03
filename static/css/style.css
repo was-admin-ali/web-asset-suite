@@ -986,33 +986,14 @@ section {
     font-weight: 700;
     color: var(--text-primary);
 }
+.mobile-nav-btn {
+    margin-top: 20px;
+}
 .hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
 body.no-scroll {
     overflow: hidden;
-}
-
-.mobile-auth-actions {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 15px; /* Space between the "Sign in" and "Try for free" buttons */
-    margin-top: 30px; /* Space above the button area */
-    width: 100%;
-    padding: 0 30px; /* Prevent buttons from touching screen edges */
-}
-
-.mobile-auth-actions .btn {
-    padding: 10px 24px;
-    font-size: 1rem;
-    flex-grow: 1; /* Allow buttons to grow */
-    max-width: 180px; /* But not get too wide */
-}
-
-/* Make logout button wider when it's the only child */
-.mobile-auth-actions .btn:only-child {
-   max-width: 240px;
 }
 
 
