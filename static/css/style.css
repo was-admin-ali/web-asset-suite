@@ -1014,6 +1014,53 @@ body.no-scroll {
     border-color: var(--text-primary);
 }
 
+.mobile-nav-group {
+    width: 100%;
+}
+.mobile-nav-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: left;
+}
+.mobile-nav-toggle .chevron {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.3s ease;
+    fill: var(--text-secondary);
+}
+.mobile-nav-toggle.active .chevron {
+    transform: rotate(180deg);
+}
+.mobile-nav-submenu {
+    display: none;
+    padding-left: 20px;
+    margin-top: 15px;
+    flex-direction: column;
+    gap: 15px;
+    border-left: 2px solid var(--border-color);
+}
+.mobile-nav-submenu.is-open {
+    display: flex;
+}
+.mobile-nav-submenu .mobile-nav-link {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.mobile-nav-submenu .mobile-nav-link:hover {
+    color: var(--text-primary);
+}
+
 
 /* --- 9. RESPONSIVE DESIGN --- */
 @media (max-width: 992px) {

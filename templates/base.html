@@ -102,10 +102,20 @@
             </button>
             <div id="mobile-nav" class="mobile-nav">
                 <a href="{{ url_for('home') }}" class="mobile-nav-link">Home</a>
-                <a href="{{ url_for('extractor_page') }}" class="mobile-nav-link">Asset Extractor</a>
-                <a href="{{ url_for('compressor_page') }}" class="mobile-nav-link">Image Compressor</a>
-                <a href="{{ url_for('contrast_checker_page') }}" class="mobile-nav-link">Contrast Checker</a>
-                <a href="{{ url_for('font_pairings_page') }}" class="mobile-nav-link">Font Pairings</a>
+                <div class="mobile-nav-group">
+                    <button class="mobile-nav-toggle">
+                        Tools
+                        <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div class="mobile-nav-submenu">
+                        <a href="{{ url_for('extractor_page') }}" class="mobile-nav-link">Asset Extractor</a>
+                        <a href="{{ url_for('compressor_page') }}" class="mobile-nav-link">Image Compressor</a>
+                        <a href="{{ url_for('contrast_checker_page') }}" class="mobile-nav-link">Contrast Checker</a>
+                        <a href="{{ url_for('font_pairings_page') }}" class="mobile-nav-link">Font Pairings</a>
+                    </div>
+                </div>
                 <a href="{{ url_for('blog_list') }}" class="mobile-nav-link">Blog</a>
                 <a href="{{ url_for('contact_page') }}" class="mobile-nav-link">Contact</a>
                 

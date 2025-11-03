@@ -1070,6 +1070,17 @@ function initScrollAnimations() {
     });
 }
 
+function initMobileNavDropdowns() {
+    const toggles = document.querySelectorAll('.mobile-nav-toggle');
+    toggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            const submenu = toggle.nextElementSibling;
+            toggle.classList.toggle('active');
+            submenu.classList.toggle('is-open');
+        });
+    });
+}
+
 
 // --- MAIN EXECUTION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1088,4 +1099,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initTocScrollspy();
     initUsageLimitModal(); // NEW
     initScrollAnimations();
+    initMobileNavDropdowns();
 });
