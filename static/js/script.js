@@ -1070,35 +1070,6 @@ function initScrollAnimations() {
     });
 }
 
-// --- REVISED: CUSTOM CURSOR LOGIC ---
-function initCustomCursor() {
-    const mainCursor = document.querySelector(".custom-cursor");
-    const followCursor = document.querySelector(".cursor-follow-blur");
-
-    if (!mainCursor || !followCursor) {
-        return;
-    }
-
-    document.addEventListener("mousemove", function (e) {
-        const { clientX, clientY } = e;
-
-        requestAnimationFrame(() => {
-            mainCursor.style.transform = `translate(${clientX}px, ${clientY}px)`;
-            followCursor.style.transform = `translate(${clientX - 20}px, ${clientY - 20}px)`; // Adjusted offset for smaller blur
-        });
-
-        const target = e.target;
-        if (
-            target.matches('a') ||
-            target.matches('button') ||
-            target.closest('.btn') ||
-            target.style.cursor === 'pointer'
-        ) {
-            // CHANGED: Reduced scale from 1.5 to 1.2 for a more subtle effect
-            mainCursor.style.transform = `translate(${clientX}px, ${clientY}px) scale(1.2)`;
-        }
-    });
-}
 
 // --- MAIN EXECUTION ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -1117,5 +1088,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initTocScrollspy();
     initUsageLimitModal(); // NEW
     initScrollAnimations();
-    initCustomCursor();
 });
