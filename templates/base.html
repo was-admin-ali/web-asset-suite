@@ -52,7 +52,7 @@
 
 </head>
 <body data-is-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
- <div class="page-wrapper"></div>
+
     <header class="main-header">
         <div class="container">
             <div class="logo">
@@ -226,7 +226,7 @@
             </div>
         </div>
     </footer>
-    </div>
+    
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

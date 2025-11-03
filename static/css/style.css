@@ -24,13 +24,6 @@
 /* --- 2. GLOBAL STYLES & RESETS --- */
 *, *::before, *::after { box-sizing: border-box; }
 
-/* --- START: CORRECTED OVERFLOW FIX --- */
-.page-wrapper {
-    overflow-x: clip; /* Modern way to prevent horizontal scroll */
-    overflow-x: hidden; /* Fallback for older browsers */
-}
-/* --- END: CORRECTED OVERFLOW FIX --- */
-
 html { 
     scroll-behavior: smooth; 
 }
@@ -43,6 +36,8 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     word-wrap: break-word; /* Redundant but safe fallback */
+    overflow-x: clip; /* THIS IS THE KEY FIX */
+    overflow-x: hidden; /* Fallback for older browsers */
 }
     
 
@@ -3233,6 +3228,9 @@ section {
     }
     .post-header-image {
         order: -1; /* Move image above text on mobile */
+    }
+    body.no-scroll {
+        overflow: hidden;
     }
 }
 @media (max-width: 768px) {
