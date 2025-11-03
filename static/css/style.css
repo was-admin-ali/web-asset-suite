@@ -960,12 +960,11 @@ section {
     position: relative;
     transform-origin: 1px;
 }
+
+/* START: UPDATED MOBILE NAV STYLES (Inspired by your image) */
 .mobile-nav {
-    display: none;
+    display: flex;
     flex-direction: column;
-    gap: 20px;
-    align-items: center;
-    justify-content: center;
     background-color: var(--bg-secondary);
     position: fixed;
     top: 0;
@@ -976,19 +975,70 @@ section {
     transform: translateX(100%);
     transition: transform 0.3s ease-in-out, visibility 0.3s;
     visibility: hidden;
+    padding: 20px 30px;
+    border-top: 4px solid var(--accent-primary);
 }
+
 .mobile-nav.is-open {
     transform: translateX(0);
     visibility: visible;
 }
+
+/* Header inside the mobile menu */
+.mobile-nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.mobile-nav-header .logo a {
+    height: 34px;
+}
+
+/* Main links area */
+.mobile-nav-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Left-align links */
+    gap: 25px;
+    overflow-y: auto; /* Allow scrolling if many links */
+}
+
 .mobile-nav-link {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.2rem;
+    font-weight: 600;
     color: var(--text-primary);
+    transition: color 0.2s ease;
 }
-.mobile-nav-btn {
-    margin-top: 20px;
+
+.mobile-nav-link:hover {
+    color: var(--accent-primary);
 }
+
+/* Footer with action buttons */
+.mobile-nav-footer {
+    margin-top: auto; /* Pushes this to the bottom */
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+.mobile-nav-footer .btn {
+    width: 100%;
+    text-align: center;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+/* END: UPDATED MOBILE NAV STYLES */
+
 .hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
