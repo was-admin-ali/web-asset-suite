@@ -24,15 +24,12 @@
 /* --- 2. GLOBAL STYLES & RESETS --- */
 *, *::before, *::after { box-sizing: border-box; }
 
-/* --- START: THE DEFINITIVE OVERFLOW FIX --- */
-html {
-    width: 100%;
-    overflow-x: hidden;
+/* --- START: CORRECTED OVERFLOW FIX --- */
+.page-wrapper {
+    overflow-x: clip; /* Modern way to prevent horizontal scroll */
+    overflow-x: hidden; /* Fallback for older browsers */
 }
-body {
-    width: 100%;
-}
-/* --- END: THE DEFINITIVE OVERFLOW FIX --- */
+/* --- END: CORRECTED OVERFLOW FIX --- */
 
 html { 
     scroll-behavior: smooth; 
@@ -3236,9 +3233,6 @@ section {
     }
     .post-header-image {
         order: -1; /* Move image above text on mobile */
-    }
-    body.no-scroll {
-        overflow: hidden;
     }
 }
 @media (max-width: 768px) {
