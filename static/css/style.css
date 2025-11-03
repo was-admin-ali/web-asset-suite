@@ -994,8 +994,10 @@ section {
 .hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
 .hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
 .hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
-body.no-scroll {
-    overflow: hidden;
+@media (max-width: 992px) {
+    body.no-scroll {
+        overflow: hidden;
+    }
 }
 .mobile-nav-actions {
     display: flex;
