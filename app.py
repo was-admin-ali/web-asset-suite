@@ -48,6 +48,7 @@ from flask_wtf.csrf import CSRFProtect
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From
 import subprocess # NEW IMPORT for running external tools
+from datetime import datetime
 
 load_dotenv()
 
@@ -322,8 +323,11 @@ def init_db_command():
     print("Initialized the database.")
 
 @app.context_processor
-def inject_ga_id():
-    return dict(GA_MEASUREMENT_ID=os.environ.get('GA_MEASUREMENT_ID'))
+def inject_global_vars():
+    return dict(
+        GA_MEASUREMENT_ID=os.environ.get('GA_MEASUREMENT_ID'),
+        now=datetime.utcnow()
+    )
 
 @app.before_request
 def before_request_callback():

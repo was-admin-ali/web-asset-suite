@@ -940,7 +940,7 @@ section {
 
 /* --- MOBILE NAVIGATION STYLES --- */
 .hamburger-btn {
-    display: none;
+    display: none; /* Hidden by default, shown in media query */
     flex-direction: column;
     justify-content: space-around;
     width: 30px;
@@ -949,7 +949,7 @@ section {
     border: none;
     cursor: pointer;
     padding: 0;
-    z-index: 2000;
+    z-index: 2000; /* Ensures it stays above the mobile nav overlay */
 }
 .hamburger-btn span {
     width: 30px;
@@ -960,88 +960,82 @@ section {
     position: relative;
     transform-origin: 1px;
 }
-
-/* START: UPDATED MOBILE NAV STYLES (Inspired by your image) */
 .mobile-nav {
-    display: flex;
+    display: none; /* Hidden by default, shown in media query */
     flex-direction: column;
+    align-items: stretch; /* Makes children (like buttons) full-width */
+    justify-content: space-between; /* Pushes content to top, middle, bottom */
+    text-align: center;
+    padding: 20px 30px 40px; /* Top, sides, bottom padding */
+    box-sizing: border-box;
     background-color: var(--bg-secondary);
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100vh;
+    height: 100%;
     z-index: 1500;
     transform: translateX(100%);
     transition: transform 0.3s ease-in-out, visibility 0.3s;
     visibility: hidden;
-    padding: 20px 30px;
-    border-top: 4px solid var(--accent-primary);
+    overflow-y: auto; /* Allow scrolling on small screens */
 }
-
 .mobile-nav.is-open {
     transform: translateX(0);
     visibility: visible;
 }
-
-/* Header inside the mobile menu */
-.mobile-nav-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 20px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0; /* Prevent header from shrinking */
+/* New wrappers for layout */
+.mobile-nav-logo {
+    flex-shrink: 0; /* Prevent the logo from shrinking */
+    text-align: left; /* Align logo to the left */
 }
-
-.mobile-nav-header .logo a {
-    height: 34px;
+.mobile-nav-logo a {
+    display: inline-block;
+    height: 34px; /* Match mobile header logo size */
 }
+.mobile-nav-logo img {
+    height: 100%;
+    width: auto;
+}
+.mobile-nav-logo .logo-dark { display: none; }
+.mobile-nav-logo .logo-light { display: block; }
+[data-theme="dark"] .mobile-nav-logo .logo-light { display: none; }
+[data-theme="dark"] .mobile-nav-logo .logo-dark { display: block; }
 
-/* Main links area */
-.mobile-nav-body {
+.mobile-nav-links {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Left-align links */
     gap: 25px;
-    overflow-y: auto; /* Allow scrolling if many links */
+    margin: auto 0; /* This vertically centers the links block */
 }
-
-.mobile-nav-link {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    transition: color 0.2s ease;
-}
-
-.mobile-nav-link:hover {
-    color: var(--accent-primary);
-}
-
-/* Footer with action buttons */
-.mobile-nav-footer {
-    margin-top: auto; /* Pushes this to the bottom */
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
+.mobile-nav-actions {
     display: flex;
     flex-direction: column;
     gap: 15px;
-    flex-shrink: 0; /* Prevent footer from shrinking */
+    flex-shrink: 0; /* Prevent buttons from shrinking */
 }
-
-.mobile-nav-footer .btn {
-    width: 100%;
-    text-align: center;
-    padding: 14px;
+.mobile-nav-link {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.mobile-nav-btn {
+    padding-top: 15px;
+    padding-bottom: 15px;
     font-size: 1rem;
-    font-weight: 600;
 }
-/* END: UPDATED MOBILE NAV STYLES */
-
-.hamburger-btn.is-active span:nth-child(1) { transform: rotate(45deg); }
-.hamburger-btn.is-active span:nth-child(2) { opacity: 0; transform: translateX(20px); }
-.hamburger-btn.is-active span:nth-child(3) { transform: rotate(-45deg); }
+/* Active state for the hamburger icon (to form an 'X') */
+.hamburger-btn.is-active span:nth-child(1) {
+    transform: rotate(45deg);
+}
+.hamburger-btn.is-active span:nth-child(2) {
+    opacity: 0;
+    transform: translateX(20px);
+}
+.hamburger-btn.is-active span:nth-child(3) {
+    transform: rotate(-45deg);
+}
+/* Prevent body scroll when the menu is open */
 body.no-scroll {
     overflow: hidden;
 }
