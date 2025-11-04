@@ -33,8 +33,6 @@ html {
 }
 body {
     width: 100%;
-    overflow-x: hidden;
-    /* overflow-x: hidden; <-- THIS LINE IS REMOVED */
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
