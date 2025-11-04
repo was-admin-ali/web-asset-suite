@@ -33,7 +33,7 @@ html {
 }
 body {
     width: 100%;
-    /* overflow-x: hidden; is intentionally removed to allow position:sticky to work */
+    overflow-x: hidden;
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
