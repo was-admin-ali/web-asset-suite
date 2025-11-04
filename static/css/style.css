@@ -1,3 +1,7 @@
+/* --- 41. FINAL & DEFINITIVE OVERFLOW SOLUTION --- */
+body {
+    overflow-x: clip;
+}
 /* --- 1. MODERN TECH THEME - COLOR & LAYOUT VARIABLES --- */
 :root { /* Dark Mode */
     --bg-primary: #111111;
@@ -33,7 +37,6 @@ html {
 }
 body {
     width: 100%;
-    /* overflow-x: hidden; is intentionally removed to allow position:sticky to work */
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
@@ -320,11 +323,7 @@ section {
     flex: 1 1 55%;
     transform: translateY(-21px); /* <-- THIS IS THE NEW LINE */
 }
-.hero-image { 
-    flex: 1 1 45%; 
-    max-width: 550px; 
-    overflow: hidden; /* FIX: Prevents SVG animation overflow */
-}
+.hero-image { flex: 1 1 45%; max-width: 550px; overflow: hidden; }
 .hero-content h1 {
     font-size: clamp(2.5rem, 6vw, 4.2rem);
     color: var(--text-primary);
@@ -2027,7 +2026,7 @@ body.no-scroll {
     width: 100%;
     margin: 40px auto 60px;
     max-width: 650px;
-    overflow: hidden; /* FIX: Prevents mockup overflow */
+    overflow: hidden;
 }
 .mockup-laptop {
     position: absolute;
