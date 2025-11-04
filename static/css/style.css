@@ -33,6 +33,7 @@ html {
 }
 body {
     width: 100%;
+    /* overflow-x: hidden; is intentionally removed to allow position:sticky to work */
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
@@ -1094,6 +1095,14 @@ body.no-scroll {
         box-shadow: none; /* Remove shadow when sticky */
     }
     /* --- END: Sticky Mobile Header --- */
+    
+    /* --- START: Mobile Menu Scroll Fix --- */
+    /* When the menu is open, the body can't scroll, so the header doesn't need to be sticky.
+       Changing it to 'absolute' prevents a rendering conflict that was hiding the mobile menu when scrolled down. */
+    body.no-scroll .main-header {
+        position: absolute;
+    }
+    /* --- END: Mobile Menu Scroll Fix --- */
 }
 @media (max-width: 768px) {
     .container { padding: 10px 20px; }
@@ -3867,8 +3876,3 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
-
-/* --- 41. FINAL & DEFINITIVE OVERFLOW SOLUTION --- */
-body {
-    overflow-x: clip;
-}
