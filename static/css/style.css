@@ -3141,7 +3141,7 @@ body.no-scroll {
     display: grid;
     grid-template-columns: 250px 1fr;
     gap: 50px;
-    align-items: flex-start;
+    align-items: start;
 }
 .post-sidebar {
     position: sticky;
