@@ -3869,3 +3869,8 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
+
+/* --- TEMPORARY DEBUGGING - REMOVE AFTER FIXING --- */
+* {
+  border: 1px solid red !important;
+}
