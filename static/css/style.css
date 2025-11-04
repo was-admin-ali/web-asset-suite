@@ -1,3 +1,6 @@
+body > * {
+    overflow: clip;
+}
 /* --- 1. MODERN TECH THEME - COLOR & LAYOUT VARIABLES --- */
 :root { /* Dark Mode */
     --bg-primary: #111111;
