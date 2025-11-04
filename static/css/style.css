@@ -27,13 +27,9 @@
 /* --- START: THE DEFINITIVE OVERFLOW FIX --- */
 /* This is the most powerful rule to prevent horizontal scrolling.
    It forces the entire document to stay within the viewport width. */
-html {
+html, body {
     width: 100%;
     overflow-x: hidden;
-}
-body {
-    width: 100%;
-    /* overflow-x: hidden; is intentionally removed to allow position:sticky to work */
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
@@ -1095,7 +1091,7 @@ body.no-scroll {
         box-shadow: none; /* Remove shadow when sticky */
     }
     /* --- END: Sticky Mobile Header --- */
-    
+
     /* --- START: Mobile Menu Scroll Fix --- */
     /* When the menu is open, the body can't scroll, so the header doesn't need to be sticky.
        Changing it to 'absolute' prevents a rendering conflict that was hiding the mobile menu when scrolled down. */
