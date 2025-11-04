@@ -100,7 +100,6 @@ p { line-height: 1.6; margin: 1em 0 0 0; }
     box-shadow: 0 10px 30px -5px var(--shadow-color);
 }
 .logo {
-    flex-shrink: 0;
     margin-right: auto;
 }
 .logo a { display: flex; align-items: center; height: 40px; }
@@ -234,7 +233,6 @@ p { line-height: 1.6; margin: 1em 0 0 0; }
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-shrink: 0;
     margin-left: auto;
 }
 .header-actions .btn {
@@ -3869,8 +3867,3 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
-
-/* --- TEMPORARY DEBUGGING - REMOVE AFTER FIXING --- */
-* {
-  border: 1px solid red !important;
-}
