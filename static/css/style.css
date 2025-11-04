@@ -2024,6 +2024,7 @@ body.no-scroll {
     width: 100%;
     margin: 40px auto 60px;
     max-width: 650px;
+    overflow: hidden;
 }
 .mockup-laptop {
     position: absolute;
