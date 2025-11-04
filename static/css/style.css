@@ -321,7 +321,7 @@ section {
     flex: 1 1 55%;
     transform: translateY(-21px); /* <-- THIS IS THE NEW LINE */
 }
-.hero-image { flex: 1 1 45%; max-width: 550px; }
+.hero-image { flex: 1 1 45%; max-width: 550px; overflow: hidden; }
 .hero-content h1 {
     font-size: clamp(2.5rem, 6vw, 4.2rem);
     color: var(--text-primary);
