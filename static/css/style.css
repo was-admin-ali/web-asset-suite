@@ -1,4 +1,5 @@
-body > * {
+/* --- 40. MOBILE MENU & OVERFLOW FINAL FIX --- */
+main {
     overflow: clip;
 }
 /* --- 1. MODERN TECH THEME - COLOR & LAYOUT VARIABLES --- */
