@@ -33,7 +33,6 @@ html {
 }
 body {
     width: 100%;
-    overflow-x: hidden;
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
@@ -3876,3 +3875,8 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
+
+/* --- TEMPORARY DEBUGGING - REMOVE AFTER FIXING --- */
+* {
+  border: 1px solid red !important;
+}
