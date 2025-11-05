@@ -27,12 +27,9 @@
 /* --- START: THE DEFINITIVE OVERFLOW FIX --- */
 /* This is the most powerful rule to prevent horizontal scrolling.
    It forces the entire document to stay within the viewport width. */
-html {
+html, body {
     width: 100%;
     overflow-x: hidden;
-}
-body {
-    width: 100%;
 }
 /* --- END: THE DEFINITIVE OVERFLOW FIX --- */
 
@@ -3875,8 +3872,3 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
-
-/* --- TEMPORARY DEBUGGING - REMOVE AFTER FIXING --- */
-* {
-  border: 1px solid red !important;
-}
