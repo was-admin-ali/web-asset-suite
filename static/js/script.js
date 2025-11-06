@@ -429,11 +429,15 @@ function initImageCompressorPage() {
     const reductionSlider = document.getElementById('reduction-slider');
     const reductionValue = document.getElementById('reduction-value');
     const compressBtn = document.getElementById('compress-btn');
-
-    // New elements for multi-upload
     const multiResultsList = document.getElementById('multi-results-list');
     const totalStatsSummary = document.getElementById('total-stats-summary');
-    const downloadAllBtn = document.getElementById('download-all-btn');
+    
+    // START: New Modal Elements
+    const comparisonModal = document.getElementById('comparison-modal');
+    const modalCloseBtn = document.getElementById('comparison-modal-close-btn');
+    const modalOriginalPreview = document.getElementById('modal-original-preview');
+    const modalCompressedPreview = document.getElementById('modal-compressed-preview');
+    // END: New Modal Elements
 
     let selectedFiles = [];
 
@@ -462,7 +466,6 @@ function initImageCompressorPage() {
 
     imageInput.addEventListener('change', () => updateFileSelection(imageInput.files));
     
-    // Drag and drop listeners
     fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
     fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
     fileUploadArea.addEventListener('drop', (e) => {
@@ -471,7 +474,6 @@ function initImageCompressorPage() {
         updateFileSelection(e.dataTransfer.files);
     });
 
-    // Slider listener
     if (reductionSlider && reductionValue) {
         const updateSliderAppearance = () => {
             reductionValue.textContent = `${reductionSlider.value}%`;
@@ -479,14 +481,23 @@ function initImageCompressorPage() {
             reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
         };
         reductionSlider.addEventListener('input', updateSliderAppearance);
-        updateSliderAppearance(); // Initial call
+        updateSliderAppearance();
     }
+    
+    // START: Modal close logic
+    if (comparisonModal && modalCloseBtn) {
+        const closeModal = () => comparisonModal.classList.remove('is-visible');
+        modalCloseBtn.addEventListener('click', closeModal);
+        comparisonModal.addEventListener('click', (e) => {
+            if (e.target === comparisonModal) closeModal();
+        });
+    }
+    // END: Modal close logic
 
     const createResultCard = (file) => {
         const card = document.createElement('div');
         card.className = 'result-card-multi';
         card.id = `result-card-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        
         const thumbnailUrl = URL.createObjectURL(file);
 
         card.innerHTML = `
@@ -500,7 +511,10 @@ function initImageCompressorPage() {
             </div>
             <div class="result-action-multi">
                 <span class="reduction-multi">-0%</span>
-                <a href="#" class="btn btn-secondary download-single-btn hidden">Download</a>
+                <!-- START: ADDED COMPARE BUTTON -->
+                <button class="btn btn-secondary compare-btn hidden">Compare</button>
+                <a href="#" class="btn btn-primary download-single-btn hidden">Download</a>
+                <!-- END: ADDED COMPARE BUTTON -->
             </div>
         `;
         return card;
@@ -513,14 +527,12 @@ function initImageCompressorPage() {
             return;
         }
 
-        // Reset UI
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
         errorContainer.classList.add('hidden');
         multiResultsList.innerHTML = '';
         totalStatsSummary.innerHTML = '';
         
-        // Create placeholder cards
         selectedFiles.forEach(file => {
             const card = createResultCard(file);
             multiResultsList.appendChild(card);
@@ -529,16 +541,12 @@ function initImageCompressorPage() {
         resultsContainer.classList.remove('hidden');
         loader.classList.add('hidden');
 
-        let totalOriginalSize = 0;
-        let totalCompressedSize = 0;
-        let successCount = 0;
+        let totalOriginalSize = 0, totalCompressedSize = 0, successCount = 0;
 
-        // Process files one by one
         for (const file of selectedFiles) {
             const cardId = `result-card-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
             const card = document.getElementById(cardId);
             const statusEl = card.querySelector('.status-multi');
-            
             statusEl.textContent = 'Compressing...';
 
             const formData = new FormData();
@@ -547,7 +555,6 @@ function initImageCompressorPage() {
 
             try {
                 const response = await fetch('/compress-image', { method: 'POST', body: formData });
-                
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     if(response.status === 403) showUsageLimitModal();
@@ -562,36 +569,52 @@ function initImageCompressorPage() {
                 totalCompressedSize += compressedSize;
                 successCount++;
 
-                // Update card with results
                 card.querySelector('.compressed-size').textContent = formatBytes(compressedSize);
                 const reduction = ((originalSize - compressedSize) / originalSize) * 100;
                 card.querySelector('.reduction-multi').textContent = `-${Math.max(0, reduction).toFixed(1)}%`;
                 
+                const originalUrl = URL.createObjectURL(file);
+                const compressedUrl = URL.createObjectURL(blob);
+                
                 const downloadLink = card.querySelector('.download-single-btn');
-                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.href = compressedUrl;
                 const disposition = response.headers.get('Content-Disposition');
                 const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
                 downloadLink.download = filenameMatch ? filenameMatch[1] : `compressed-${file.name}`;
                 downloadLink.classList.remove('hidden');
+                
+                // START: Event Listener for Compare Button
+                const compareBtn = card.querySelector('.compare-btn');
+                compareBtn.classList.remove('hidden');
+                compareBtn.addEventListener('click', () => {
+                    modalOriginalPreview.src = originalUrl;
+                    modalCompressedPreview.src = compressedUrl;
+                    
+                    // Reset overlay width before showing
+                    const overlay = comparisonModal.querySelector('.img-comp-overlay');
+                    if(overlay) overlay.style.width = '50%';
+
+                    comparisonModal.classList.add('is-visible');
+                    initComparisons(); // Re-initialize slider on the visible modal
+                });
+                // END: Event Listener for Compare Button
 
                 statusEl.textContent = 'Success!';
                 statusEl.style.color = 'var(--accent-secondary)';
 
             } catch (error) {
                 card.classList.add('is-error');
-                statusEl.textContent = error.message.substring(0, 50); // Truncate long messages
+                statusEl.textContent = error.message.substring(0, 50);
                 statusEl.classList.add('error-message');
             }
         }
 
-        // Update total stats summary
         if (successCount > 0) {
             const totalReduction = ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100;
             totalStatsSummary.innerHTML = `
                 Successfully compressed <strong>${successCount} of ${selectedFiles.length}</strong> images. 
                 Total saved: <strong class="total-reduction">${formatBytes(totalOriginalSize - totalCompressedSize)} (${totalReduction.toFixed(1)}%)</strong>
             `;
-            // downloadAllBtn.classList.remove('hidden'); // This would be enabled when ZIP functionality is added
         } else {
              totalStatsSummary.innerHTML = `<strong>Failed to compress ${selectedFiles.length} images.</strong>`;
         }

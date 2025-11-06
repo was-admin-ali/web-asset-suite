@@ -11,9 +11,7 @@
             
             <form id="compress-form">
                 <div class="file-upload-area" id="file-upload-area">
-                    <!-- START: MODIFIED INPUT -->
                     <input type="file" id="image-input" accept="image/jpeg, image/png" required multiple>
-                    <!-- END: MODIFIED INPUT -->
                     <div id="file-upload-prompt">
                         <svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
                         <p><strong>Click to upload</strong> or drag and drop</p>
@@ -34,7 +32,6 @@
         <div id="compress-loader" class="hidden"></div>
         <div id="compress-error" class="hidden"></div>
 
-        <!-- START: REBUILT RESULTS SECTION FOR MULTIPLE FILES -->
         <div id="compress-results" class="results-box hidden">
             <h2>Compression Results</h2>
             <div class="multi-results-header">
@@ -45,7 +42,23 @@
                 <!-- Dynamically generated result cards will be inserted here -->
             </div>
         </div>
-        <!-- END: REBUILT RESULTS SECTION -->
     </section>
 </div>
+
+<!-- START: NEW COMPARISON MODAL -->
+<div id="comparison-modal" class="image-modal">
+    <span id="comparison-modal-close-btn" class="modal-close-btn">&times;</span>
+    <div class="comparison-modal-content">
+        <h3>Visual Quality Comparison</h3>
+        <div class="img-comp-container">
+            <div class="img-comp-img">
+                <img id="modal-original-preview" src="" alt="Original Image Preview" width="1000" height="500">
+            </div>
+            <div class="img-comp-img img-comp-overlay">
+                <img id="modal-compressed-preview" src="" alt="Compressed Image Preview" width="1000" height="500">
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END: NEW COMPARISON MODAL -->
 {% endblock %}
