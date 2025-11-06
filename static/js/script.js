@@ -413,23 +413,49 @@ function initExtractorTool() {
     }
 }
 
-// --- START: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
+// --- START: NEW CONVERTER LOGIC WITH ADVANCED UI ---
 function initConverterPage() {
-    const form = document.getElementById('convert-form');
-    if (!form) return;
+    const page = document.getElementById('converter-hub-container');
+    if (!page) return;
 
+    // Main elements
+    const form = document.getElementById('convert-form');
     const fileInput = document.getElementById('file-input');
     const dropZone = document.getElementById('drop-zone');
     const fileListContainer = document.getElementById('file-list-container');
     const fileList = document.getElementById('file-list');
     const addMoreBtn = document.getElementById('add-more-files-btn');
     const convertBtn = document.getElementById('convert-btn');
-    const convertAllSelect = document.getElementById('convert-all-select');
+    const convertAllBtn = document.getElementById('convert-all-btn');
     const template = document.getElementById('file-item-template');
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
-    
-    let files = []; // Array to hold File objects
+
+    // Modal elements
+    const modal = document.getElementById('format-selector-modal');
+    const modalCloseBtn = document.getElementById('format-modal-close-btn');
+    const searchInput = document.getElementById('format-search-input');
+    const categoriesContainer = document.getElementById('format-categories');
+    const gridContainer = document.getElementById('format-grid');
+
+    let files = [];
+    let currentFileItem = null; // To track which file's format is being chosen
+    let isBulkMode = false;
+
+    // --- DATA FOR MODAL ---
+    const formatData = {
+        'Archive': ['7Z', 'ACE', 'ALZ', 'ARC', 'ARJ', 'BZ2', 'CAB', 'CPIO', 'DEB', 'DMG', 'GZ', 'IMG', 'ISO', 'JAR', 'LHA', 'LZ', 'LZMA', 'LZO', 'RAR', 'RPM', 'TAR', 'TBZ', 'TGZ', 'TXZ', 'XZ', 'Z', 'ZIP'],
+        'Audio': ['AAC', 'AC3', 'AIFF', 'ALAC', 'AMR', 'APE', 'AU', 'CAF', 'DTS', 'FLAC', 'M4A', 'M4B', 'MKA', 'MP3', 'OGA', 'OGG', 'OPUS', 'RA', 'WAV', 'WMA'],
+        'CAD': ['DWG', 'DXF'],
+        'Document': ['CSV', 'DOC', 'DOCX', 'HTML', 'JSON', 'MD', 'ODP', 'ODS', 'ODT', 'PDF', 'PPT', 'PPTX', 'RTF', 'SXC', 'SXI', 'SXW', 'TXT', 'XLS', 'XLSX', 'XML'],
+        'Ebook': ['AZW', 'AZW3', 'CBC', 'CBR', 'CBZ', 'CHM', 'EPUB', 'FB2', 'LRF', 'MOBI', 'OEB', 'PDB', 'PDF', 'PRC', 'RB', 'SNB', 'TCR', 'TXT'],
+        'Font': ['OTF', 'TTF', 'WOFF', 'WOFF2'],
+        'Image': ['AVIF', 'BMP', 'CUR', 'DDS', 'DPX', 'EPS', 'EXR', 'FITS', 'GIF', 'HDR', 'HEIC', 'ICO', 'JPEG', 'JPG', 'JP2', 'PBM', 'PCX', 'PGM', 'PNG', 'PPM', 'PSD', 'SVG', 'TGA', 'TIFF', 'WEBP', 'XCF'],
+        'Presentation': ['KEY', 'ODP', 'PPT', 'PPTX', 'SXI'],
+        'Spreadsheet': ['CSV', 'ODS', 'SXC', 'XLS', 'XLSX'],
+        'Vector': ['AI', 'CGM', 'DXF', 'EPS', 'PDF', 'SVG', 'WMF'],
+        'Video': ['3G2', '3GP', 'AVI', 'FLV', 'M4V', 'MKV', 'MOV', 'MP4', 'MPG', 'OGV', 'WEBM', 'WMV', 'TS', 'MTS', 'M2TS']
+    };
 
     const showError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
@@ -443,18 +469,28 @@ function initConverterPage() {
 
         for (const file of newFiles) {
             const fileId = `${file.name}-${file.lastModified}`;
-            if (files.some(f => `${f.name}-${f.lastModified}` === fileId)) continue; // Prevent duplicates
+            if (files.some(f => f.fileId === fileId)) continue;
+            
+            const fileObject = {
+                file: file,
+                fileId: fileId,
+                outputs: [],
+                type: 'unknown'
+            };
+            files.push(fileObject);
 
-            files.push(file);
             const clone = template.content.cloneNode(true);
             const fileItem = clone.querySelector('.file-item');
             fileItem.dataset.fileId = fileId;
             clone.querySelector('.file-name').textContent = file.name;
             clone.querySelector('.file-size').textContent = formatBytes(file.size);
             
-            const dropdown = clone.querySelector('.format-dropdown');
+            clone.querySelector('.format-select-btn').addEventListener('click', () => openFormatModal(fileItem));
+            clone.querySelector('.remove-file-btn').addEventListener('click', () => removeFile(fileId));
+            
+            fileList.appendChild(clone);
 
-            // Fetch supported formats and populate dropdown
+            // Fetch supported formats for this file
             fetch('/get-supported-formats', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -462,72 +498,145 @@ function initConverterPage() {
             })
             .then(res => res.json())
             .then(data => {
-                if (data.outputs && data.outputs.length > 0) {
-                    data.outputs.forEach(format => {
-                        const option = new Option(format.toUpperCase(), format);
-                        dropdown.add(option);
-                    });
-                    updateConvertAllOptions();
-                } else {
-                    dropdown.disabled = true;
-                    dropdown.add(new Option('N/A'));
-                    fileItem.querySelector('.status-badge').textContent = 'UNSUPPORTED';
-                    fileItem.querySelector('.status-badge').classList.add('error');
+                fileObject.outputs = data.outputs || [];
+                fileObject.type = data.type || 'unknown';
+                if (data.outputs.length === 0) {
+                    const statusBadge = document.querySelector(`[data-file-id="${fileId}"] .status-badge`);
+                    statusBadge.textContent = 'UNSUPPORTED';
+                    statusBadge.classList.add('error');
+                    document.querySelector(`[data-file-id="${fileId}"] .format-select-btn`).disabled = true;
                 }
             });
-
-            clone.querySelector('.remove-file-btn').addEventListener('click', () => {
-                files = files.filter(f => `${f.name}-${f.lastModified}` !== fileId);
-                document.querySelector(`[data-file-id="${fileId}"]`).remove();
-                if (files.length === 0) {
-                    fileListContainer.classList.add('hidden');
-                    dropZone.classList.remove('hidden');
-                }
-                updateConvertAllOptions();
-            });
-
-            fileList.appendChild(clone);
         }
-    };
-
-    const updateConvertAllOptions = () => {
-        const allDropdowns = [...fileList.querySelectorAll('.format-dropdown:not(:disabled)')];
-        if (allDropdowns.length === 0) {
-            convertAllSelect.innerHTML = '<option>N/A</option>';
-            return;
-        }
-        
-        const commonFormats = allDropdowns.reduce((acc, dropdown) => {
-            const formats = [...dropdown.options].map(opt => opt.value);
-            return acc.filter(format => formats.includes(format));
-        }, [...allDropdowns[0].options].map(opt => opt.value));
-
-        convertAllSelect.innerHTML = '<option value="">Select...</option>';
-        commonFormats.forEach(format => {
-            convertAllSelect.add(new Option(format.toUpperCase(), format));
-        });
     };
     
-    convertAllSelect.addEventListener('change', () => {
-        if (convertAllSelect.value) {
-            fileList.querySelectorAll('.format-dropdown:not(:disabled)').forEach(dd => {
-                if ([...dd.options].some(opt => opt.value === convertAllSelect.value)) {
-                    dd.value = convertAllSelect.value;
+    const removeFile = (fileId) => {
+        files = files.filter(f => f.fileId !== fileId);
+        document.querySelector(`[data-file-id="${fileId}"]`).remove();
+        if (files.length === 0) {
+            fileListContainer.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+        }
+    };
+
+    // --- Modal Logic ---
+    const openFormatModal = (targetItem) => {
+        isBulkMode = !targetItem;
+        currentFileItem = targetItem;
+        
+        const possibleOutputs = isBulkMode ? getCommonOutputs() : files.find(f => f.fileId === targetItem.dataset.fileId)?.outputs || [];
+        
+        populateModal(possibleOutputs);
+        modal.classList.remove('hidden');
+        document.body.classList.add('no-scroll');
+    };
+
+    const closeModal = () => {
+        modal.classList.add('hidden');
+        document.body.classList.remove('no-scroll');
+        searchInput.value = '';
+    };
+
+    const populateModal = (allowedFormats = []) => {
+        gridContainer.innerHTML = '';
+        categoriesContainer.innerHTML = '';
+        
+        let availableCategories = new Set();
+        Object.entries(formatData).forEach(([cat, fmts]) => {
+            const availableFmts = fmts.filter(fmt => allowedFormats.includes(fmt.toLowerCase()));
+            if (availableFmts.length > 0) {
+                availableCategories.add(cat);
+
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'format-group';
+                groupDiv.dataset.category = cat;
+                groupDiv.innerHTML = `<h3 class="format-group-title">${getCategoryIcon(cat)} ${cat}</h3>`;
+                const btnContainer = document.createElement('div');
+                btnContainer.className = 'format-buttons-container';
+                
+                availableFmts.forEach(fmt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'format-btn';
+                    btn.textContent = fmt;
+                    btn.dataset.format = fmt;
+                    btn.addEventListener('click', () => selectFormat(fmt));
+                    btnContainer.appendChild(btn);
+                });
+                groupDiv.appendChild(btnContainer);
+                gridContainer.appendChild(groupDiv);
+            }
+        });
+
+        // Populate category sidebar
+        Array.from(availableCategories).sort().forEach(cat => {
+            const catEl = document.createElement('div');
+            catEl.className = 'format-category';
+            catEl.textContent = cat;
+            catEl.addEventListener('click', () => {
+                document.querySelectorAll('.format-category').forEach(c => c.classList.remove('active'));
+                catEl.classList.add('active');
+                const targetGroup = gridContainer.querySelector(`[data-category="${cat}"]`);
+                if(targetGroup) targetGroup.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            categoriesContainer.appendChild(catEl);
+        });
+        if(categoriesContainer.firstChild) categoriesContainer.firstChild.classList.add('active');
+    };
+
+    const selectFormat = (format) => {
+        if (isBulkMode) {
+            files.forEach(file => {
+                if (file.outputs.includes(format.toLowerCase())) {
+                    const item = document.querySelector(`[data-file-id="${file.fileId}"]`);
+                    item.dataset.targetFormat = format.toLowerCase();
+                    item.querySelector('.format-select-btn').textContent = format.toUpperCase();
                 }
             });
+            convertAllBtn.textContent = format.toUpperCase();
+        } else {
+            currentFileItem.dataset.targetFormat = format.toLowerCase();
+            currentFileItem.querySelector('.format-select-btn').textContent = format.toUpperCase();
         }
-    });
+        closeModal();
+    };
 
+    const getCommonOutputs = () => {
+        const validFiles = files.filter(f => f.outputs.length > 0);
+        if (validFiles.length === 0) return [];
+        return validFiles.reduce((acc, file) => {
+            return acc.filter(fmt => file.outputs.includes(fmt));
+        }, [...validFiles[0].outputs]);
+    };
+
+    const getCategoryIcon = (category) => {
+        const icons = { 'Archive': '📦', 'Audio': '🎵', 'CAD': '🧱', 'Document': '📄', 'Ebook': '📚', 'Font': '🔤', 'Image': '🖼️', 'Presentation': '📊', 'Spreadsheet': '📈', 'Vector': '🧩', 'Video': '🎬' };
+        return icons[category] || '⚙️';
+    };
+    
+    // --- Event Listeners ---
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
     dropZone.addEventListener('click', () => fileInput.click());
     addMoreBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => addFiles(fileInput.files));
+    convertAllBtn.addEventListener('click', () => openFormatModal(null));
+    modalCloseBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        gridContainer.querySelectorAll('.format-btn').forEach(btn => {
+            const format = btn.dataset.format.toLowerCase();
+            btn.style.display = format.includes(query) ? '' : 'none';
+        });
+    });
 
+    // --- Form Submission ---
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (files.length === 0) return;
+        const filesToConvert = fileList.querySelectorAll('.file-item');
+        if (filesToConvert.length === 0) return;
 
         loader.classList.remove('hidden');
         errorContainer.classList.add('hidden');
@@ -535,22 +644,29 @@ function initConverterPage() {
         convertBtn.textContent = 'Converting...';
 
         const formData = new FormData();
-        const fileItems = fileList.querySelectorAll('.file-item');
-
-        fileItems.forEach(item => {
-            const fileId = item.dataset.fileId;
-            const file = files.find(f => `${f.name}-${f.lastModified}` === fileId);
-            const targetFormat = item.querySelector('.format-dropdown').value;
+        let fileCount = 0;
+        filesToConvert.forEach(item => {
+            const fileObject = files.find(f => f.fileId === item.dataset.fileId);
+            const targetFormat = item.dataset.targetFormat;
             
-            if (file && !item.querySelector('.format-dropdown').disabled) {
-                formData.append('files[]', file);
+            if (fileObject && targetFormat) {
+                formData.append('files[]', fileObject.file);
                 formData.append('targets[]', targetFormat);
+                fileCount++;
             }
         });
+
+        if (fileCount === 0) {
+            showError("No files have a target format selected.");
+            convertBtn.disabled = false;
+            convertBtn.textContent = 'Convert';
+            return;
+        }
 
         try {
             const response = await fetch('/convert-files', { method: 'POST', body: formData });
             if (!response.ok) {
+                if(response.status === 403) showUsageLimitModal();
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Server responded with status ${response.status}`);
             }
@@ -563,14 +679,14 @@ function initConverterPage() {
             
             const disposition = response.headers.get('content-disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+?)"/);
-            a.download = filenameMatch ? filenameMatch[1] : 'converted.zip';
+            a.download = filenameMatch ? filenameMatch[1] : (fileCount > 1 ? 'converted.zip' : `converted-${filesToConvert[0].querySelector('.file-name').textContent}`);
             
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
-
-            // Reset UI after successful download
+            
+            // Reset UI
             files = [];
             fileList.innerHTML = '';
             fileListContainer.classList.add('hidden');
@@ -585,7 +701,7 @@ function initConverterPage() {
         }
     });
 }
-// --- END: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
+// --- END: NEW CONVERTER LOGIC ---
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
