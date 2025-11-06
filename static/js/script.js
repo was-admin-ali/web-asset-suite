@@ -413,6 +413,101 @@ function initExtractorTool() {
     }
 }
 
+// --- START: NEW CONVERTER PAGE LOGIC ---
+function initConverterPage() {
+    const convertForm = document.getElementById('convert-form');
+    if (!convertForm) return;
+
+    const imageInput = document.getElementById('image-input');
+    const fileUploadArea = document.getElementById('file-upload-area');
+    const fileUploadPrompt = document.getElementById('file-upload-prompt');
+    const loader = document.getElementById('convert-loader');
+    const errorContainer = document.getElementById('convert-error');
+    const resultsContainer = document.getElementById('convert-results');
+    const convertedPreview = document.getElementById('converted-preview');
+    const downloadBtn = document.getElementById('download-btn');
+    
+    let originalFile = null;
+
+    const showConvertError = (message) => {
+        errorContainer.textContent = `Error: ${message}`;
+        errorContainer.classList.remove('hidden');
+        resultsContainer.classList.add('hidden');
+    };
+    
+    const resetUI = () => {
+        errorContainer.classList.add('hidden');
+        resultsContainer.classList.add('hidden');
+        loader.classList.add('hidden');
+    };
+
+    const handleFileSelect = (file) => {
+        if (file) {
+            originalFile = file;
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${file.name}</strong></p><span class="file-type-info">Click to change</span>`;
+            resetUI();
+        }
+    };
+
+    imageInput.addEventListener('change', () => {
+        if (imageInput.files.length > 0) {
+            handleFileSelect(imageInput.files[0]);
+        }
+    });
+
+    fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
+    fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('is-dragover');
+        if (e.dataTransfer.files.length > 0) {
+             handleFileSelect(e.dataTransfer.files[0]);
+        }
+    });
+
+    convertForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!originalFile) {
+            showConvertError('Please select an image to convert.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', originalFile);
+
+        resetUI();
+        loader.classList.remove('hidden');
+        
+        try {
+            const response = await fetch('/convert-to-png', { method: 'POST', body: formData });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                if(response.status === 403) showUsageLimitModal();
+                throw new Error(errorData.error || `Conversion failed: Server responded with status ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const convertedUrl = URL.createObjectURL(blob);
+
+            convertedPreview.src = convertedUrl;
+            downloadBtn.href = convertedUrl;
+
+            const disposition = response.headers.get('Content-Disposition');
+            const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
+            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'converted.png';
+
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.scrollIntoView({ behavior: 'smooth' });
+
+        } catch (error) {
+            showConvertError(error.message);
+        } finally {
+            loader.classList.add('hidden');
+        }
+    });
+}
+// --- END: NEW CONVERTER PAGE LOGIC ---
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
@@ -1181,4 +1276,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initUsageLimitModal(); // NEW
     initScrollAnimations();
     initMobileNavDropdowns();
+    initConverterPage(); // ADDED THIS LINE
 });

@@ -448,7 +448,7 @@ section {
 
 .all-in-one-content .tools-showcase-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2x2 grid */
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 25px;
     text-align: left;
 }
@@ -495,6 +495,7 @@ section {
 .tool-card-icon.icon-contrast { background-color: #4a69ff; }
 .tool-card-icon.icon-pairings { background-color: #4a69ff; }
 .tool-card-icon.icon-compressor { background-color: #4a69ff; }
+.tool-card-icon.icon-converter { background-color: #4a69ff; }
 
 .tool-card-icon img {
     width: 28px;
@@ -806,10 +807,18 @@ section {
 
 /* --- 8. HELPERS --- */
 .hidden { display: none !important; }
-#loader { border: 5px solid var(--border-color); border-top: 5px solid var(--accent-primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 60px auto; }
+#loader, #convert-loader, #compress-loader {
+    border: 5px solid var(--border-color);
+    border-top: 5px solid var(--accent-primary);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 60px auto;
+}
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-#error-message {
+#error-message, #convert-error, #compress-error {
     text-align: center;
     padding: 40px;
     margin-top: 40px;
@@ -818,7 +827,9 @@ section {
     background-color: #8C1C1B;
     border: 1px solid #FCA5A5;
 }
-[data-theme="light"] #error-message {
+[data-theme="light"] #error-message,
+[data-theme="light"] #convert-error,
+[data-theme="light"] #compress-error {
     color: #991B1B;
     background-color: #FEE2E2;
     border: 1px solid #FCA5A5;
@@ -1123,7 +1134,8 @@ body.no-scroll {
     /* --- START: Full-width Buttons on Mobile --- */
     #extract-form button,
     #compress-btn,
-    #generate-pairing-btn {
+    #generate-pairing-btn,
+    #convert-btn {
         width: 100%;
         padding-top: 15px;
         padding-bottom: 15px;
