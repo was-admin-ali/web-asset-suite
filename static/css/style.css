@@ -1411,6 +1411,103 @@ body.no-scroll {
     background-color: #FEE2E2;
 }
 
+/* --- START: NEW STYLES FOR MULTI-IMAGE COMPRESSION RESULTS --- */
+.multi-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 20px;
+    background-color: var(--bg-primary);
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+#total-stats-summary {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+#total-stats-summary strong {
+    color: var(--text-primary);
+}
+#total-stats-summary .total-reduction {
+    color: var(--accent-secondary);
+}
+
+#multi-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.result-card-multi {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+.result-card-multi.is-error {
+    border-color: #8C1C1B;
+}
+
+.result-thumbnail-multi {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.result-info-multi {
+    flex-grow: 1;
+    min-width: 0; /* Prevents text overflow issues in flexbox */
+}
+.result-info-multi p {
+    margin: 0;
+    line-height: 1.4;
+}
+.filename-multi {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.size-info-multi, .status-multi {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.status-multi.error-message {
+    color: #F87171;
+    font-weight: 600;
+}
+[data-theme="light"] .status-multi.error-message {
+    color: #B91C1C;
+}
+
+.result-action-multi {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    text-align: right;
+}
+.reduction-multi {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--accent-secondary);
+    min-width: 50px;
+}
+.result-action-multi .btn {
+    padding: 8px 18px;
+    font-size: 0.9rem;
+}
+
+/* --- END: NEW STYLES --- */
+
 #compress-results .results-summary {
     display: flex;
     justify-content: space-around;
@@ -1471,6 +1568,21 @@ body.no-scroll {
 
 @media (max-width: 768px) {
     .image-previews { grid-template-columns: 1fr; }
+
+    /* START: Mobile styles for new multi-results */
+    .result-card-multi {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .result-info-multi {
+        width: 100%;
+    }
+    .result-action-multi {
+        width: 100%;
+        justify-content: space-between;
+    }
+    /* END: Mobile styles */
 }
 
 /* --- 11. STATIC CONTENT PAGE STYLES --- */

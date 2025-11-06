@@ -419,123 +419,181 @@ function initImageCompressorPage() {
     const compressForm = document.getElementById('compress-form');
     if (!compressForm) return;
 
+    // Get all DOM elements
     const imageInput = document.getElementById('image-input');
     const fileUploadArea = document.getElementById('file-upload-area');
     const fileUploadPrompt = document.getElementById('file-upload-prompt');
     const loader = document.getElementById('compress-loader');
     const errorContainer = document.getElementById('compress-error');
     const resultsContainer = document.getElementById('compress-results');
-    const originalSizeEl = document.getElementById('original-size');
-    const compressedSizeEl = document.getElementById('compressed-size');
-    const reductionPercentEl = document.getElementById('reduction-percent');
-    const originalPreview = document.getElementById('original-preview');
-    const compressedPreview = document.getElementById('compressed-preview');
-    const downloadBtn = document.getElementById('download-btn');
-    const compressionStatusMessage = document.getElementById('compression-status-message');
-    const reductionContainer = document.getElementById('reduction-container');
     const reductionSlider = document.getElementById('reduction-slider');
     const reductionValue = document.getElementById('reduction-value');
+    const compressBtn = document.getElementById('compress-btn');
 
-    let originalFile = null;
+    // New elements for multi-upload
+    const multiResultsList = document.getElementById('multi-results-list');
+    const totalStatsSummary = document.getElementById('total-stats-summary');
+    const downloadAllBtn = document.getElementById('download-all-btn');
+
+    let selectedFiles = [];
 
     const showCompressError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
     };
-
-    imageInput.addEventListener('change', () => {
-        if (imageInput.files.length > 0) {
-            originalFile = imageInput.files[0];
-            const fileName = originalFile.name;
-            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
-            resultsContainer.classList.add('hidden');
-            errorContainer.classList.add('hidden');
-            if (reductionContainer) {
-                reductionContainer.style.display = 'flex';
-            }
-        }
-    });
     
-    if (reductionSlider && reductionValue) {
-        const updateSliderAppearance = () => {
-            reductionValue.textContent = `${reductionSlider.value}%`;
-            const min = reductionSlider.min || 0;
-            const max = reductionSlider.max || 100;
-            const value = reductionSlider.value;
-            const fillPercent = ((value - min) / (max - min)) * 100;
-            reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
-        };
-        reductionSlider.addEventListener('input', updateSliderAppearance);
-        updateSliderAppearance();
-    }
+    const updateFileSelection = (files) => {
+        selectedFiles = Array.from(files);
+        if (selectedFiles.length === 0) {
+             fileUploadPrompt.innerHTML = `<svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                        <p><strong>Click to upload</strong> or drag and drop</p>
+                        <span class="file-type-info">PNG or JPG (Max 10MB each)</span>`;
+            compressBtn.textContent = 'Compress Image';
+        } else if (selectedFiles.length === 1) {
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${selectedFiles[0].name}</strong></p><span class="file-type-info">Click or drop to change</span>`;
+            compressBtn.textContent = 'Compress Image';
+        } else {
+            fileUploadPrompt.innerHTML = `<p><strong>${selectedFiles.length} files selected</strong></p><span class="file-type-info">Click or drop to change</span>`;
+            compressBtn.textContent = `Compress ${selectedFiles.length} Images`;
+        }
+        resultsContainer.classList.add('hidden');
+        errorContainer.classList.add('hidden');
+    };
 
-    fileUploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.add('is-dragover');
-    });
+    imageInput.addEventListener('change', () => updateFileSelection(imageInput.files));
+    
+    // Drag and drop listeners
+    fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
     fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
     fileUploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         fileUploadArea.classList.remove('is-dragover');
-        imageInput.files = e.dataTransfer.files;
-        imageInput.dispatchEvent(new Event('change'));
+        updateFileSelection(e.dataTransfer.files);
     });
+
+    // Slider listener
+    if (reductionSlider && reductionValue) {
+        const updateSliderAppearance = () => {
+            reductionValue.textContent = `${reductionSlider.value}%`;
+            const fillPercent = (reductionSlider.value / reductionSlider.max) * 100;
+            reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
+        };
+        reductionSlider.addEventListener('input', updateSliderAppearance);
+        updateSliderAppearance(); // Initial call
+    }
+
+    const createResultCard = (file) => {
+        const card = document.createElement('div');
+        card.className = 'result-card-multi';
+        card.id = `result-card-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        
+        const thumbnailUrl = URL.createObjectURL(file);
+
+        card.innerHTML = `
+            <img class="result-thumbnail-multi" src="${thumbnailUrl}" alt="Thumbnail for ${file.name}">
+            <div class="result-info-multi">
+                <p class="filename-multi">${file.name}</p>
+                <p class="size-info-multi">
+                    <span class="original-size">${formatBytes(file.size)}</span> &rarr; <span class="compressed-size">...</span>
+                </p>
+                <p class="status-multi">Waiting...</p>
+            </div>
+            <div class="result-action-multi">
+                <span class="reduction-multi">-0%</span>
+                <a href="#" class="btn btn-secondary download-single-btn hidden">Download</a>
+            </div>
+        `;
+        return card;
+    };
 
     compressForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!originalFile) {
-            showCompressError('Please select an image to compress.');
+        if (selectedFiles.length === 0) {
+            showCompressError('Please select one or more images to compress.');
             return;
         }
-        const formData = new FormData();
-        formData.append('image', originalFile);
-        formData.append('target_reduction', reductionSlider.value);
 
+        // Reset UI
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
         errorContainer.classList.add('hidden');
-        if (compressionStatusMessage) compressionStatusMessage.textContent = '';
+        multiResultsList.innerHTML = '';
+        totalStatsSummary.innerHTML = '';
         
-        try {
-            const response = await fetch('/compress-image', { method: 'POST', body: formData });
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                if(response.status === 403) showUsageLimitModal();
-                throw new Error(errorData.error || `Compression failed: Server responded with status ${response.status}`);
-            }
-            const blob = await response.blob();
-            const originalSize = response.headers.get('X-Original-Size');
-            const compressedSize = response.headers.get('X-Compressed-Size');
-            const compressionSuccessful = response.headers.get('X-Compression-Successful') === 'true';
+        // Create placeholder cards
+        selectedFiles.forEach(file => {
+            const card = createResultCard(file);
+            multiResultsList.appendChild(card);
+        });
+        
+        resultsContainer.classList.remove('hidden');
+        loader.classList.add('hidden');
 
-            originalSizeEl.textContent = formatBytes(originalSize);
-            compressedSizeEl.textContent = formatBytes(compressedSize);
+        let totalOriginalSize = 0;
+        let totalCompressedSize = 0;
+        let successCount = 0;
 
-            const reduction = ((originalSize - compressedSize) / originalSize) * 100;
-            reductionPercentEl.textContent = `${Math.max(0, reduction).toFixed(1)}%`;
-            if (!compressionSuccessful && compressionStatusMessage) {
-                compressionStatusMessage.textContent = 'Could not meet target. Max compression applied.';
-            }
-
-            // Create object URLs for the previews
-            const originalUrl = URL.createObjectURL(originalFile);
-            const compressedUrl = URL.createObjectURL(blob);
-
-            originalPreview.src = originalUrl;
-            compressedPreview.src = compressedUrl;
-            downloadBtn.href = compressedUrl;
+        // Process files one by one
+        for (const file of selectedFiles) {
+            const cardId = `result-card-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const card = document.getElementById(cardId);
+            const statusEl = card.querySelector('.status-multi');
             
-            const disposition = response.headers.get('Content-Disposition');
-            const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
-            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'compressed-image';
-            
-            resultsContainer.classList.remove('hidden');
-            initComparisons(); // Initialize the comparison slider
+            statusEl.textContent = 'Compressing...';
 
-        } catch (error) {
-            showCompressError(error.message);
-        } finally {
-            loader.classList.add('hidden');
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('target_reduction', reductionSlider.value);
+
+            try {
+                const response = await fetch('/compress-image', { method: 'POST', body: formData });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    if(response.status === 403) showUsageLimitModal();
+                    throw new Error(errorData.error || `Server responded with status ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const originalSize = parseInt(response.headers.get('X-Original-Size'), 10);
+                const compressedSize = parseInt(response.headers.get('X-Compressed-Size'), 10);
+
+                totalOriginalSize += originalSize;
+                totalCompressedSize += compressedSize;
+                successCount++;
+
+                // Update card with results
+                card.querySelector('.compressed-size').textContent = formatBytes(compressedSize);
+                const reduction = ((originalSize - compressedSize) / originalSize) * 100;
+                card.querySelector('.reduction-multi').textContent = `-${Math.max(0, reduction).toFixed(1)}%`;
+                
+                const downloadLink = card.querySelector('.download-single-btn');
+                downloadLink.href = URL.createObjectURL(blob);
+                const disposition = response.headers.get('Content-Disposition');
+                const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
+                downloadLink.download = filenameMatch ? filenameMatch[1] : `compressed-${file.name}`;
+                downloadLink.classList.remove('hidden');
+
+                statusEl.textContent = 'Success!';
+                statusEl.style.color = 'var(--accent-secondary)';
+
+            } catch (error) {
+                card.classList.add('is-error');
+                statusEl.textContent = error.message.substring(0, 50); // Truncate long messages
+                statusEl.classList.add('error-message');
+            }
+        }
+
+        // Update total stats summary
+        if (successCount > 0) {
+            const totalReduction = ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100;
+            totalStatsSummary.innerHTML = `
+                Successfully compressed <strong>${successCount} of ${selectedFiles.length}</strong> images. 
+                Total saved: <strong class="total-reduction">${formatBytes(totalOriginalSize - totalCompressedSize)} (${totalReduction.toFixed(1)}%)</strong>
+            `;
+            // downloadAllBtn.classList.remove('hidden'); // This would be enabled when ZIP functionality is added
+        } else {
+             totalStatsSummary.innerHTML = `<strong>Failed to compress ${selectedFiles.length} images.</strong>`;
         }
     });
 }
