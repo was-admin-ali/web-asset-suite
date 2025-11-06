@@ -1224,10 +1224,10 @@ def compress_image() -> FlaskResponse:
             return jsonify({'error': 'An unexpected server error occurred during compression.'}), 500
 # END: DEBUGLOGGING FOR COMPRESS IMAGE
 
-# START: NEW CONVERTER ENDPOINT
-@app.route('/convert-to-png', methods=['POST'])
+# --- START: REVISED AND ENHANCED CONVERTER ENDPOINT ---
+@app.route('/convert-image', methods=['POST'])
 @csrf.exempt
-def convert_to_png():
+def convert_image():
     if not check_and_increment_usage():
         return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
 
@@ -1235,9 +1235,20 @@ def convert_to_png():
         return jsonify({'error': 'No file provided.'}), 400
     
     file = request.files['image']
+    target_format = request.form.get('target_format', 'png').lower()
 
     if file.filename == '':
         return jsonify({'error': 'No file selected.'}), 400
+
+    format_map = {
+        'jpeg': {'format': 'JPEG', 'mimetype': 'image/jpeg', 'extension': 'jpg'},
+        'png': {'format': 'PNG', 'mimetype': 'image/png', 'extension': 'png'},
+        'webp': {'format': 'WEBP', 'mimetype': 'image/webp', 'extension': 'webp'},
+        'gif': {'format': 'GIF', 'mimetype': 'image/gif', 'extension': 'gif'},
+    }
+
+    if target_format not in format_map:
+        return jsonify({'error': 'Invalid target format specified.'}), 400
 
     original_filename = secure_filename(file.filename)
     file_bytes = file.read()
@@ -1246,31 +1257,36 @@ def convert_to_png():
         return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit.'}), 413
 
     try:
-        # Use Pillow to open the image from bytes
         image = Image.open(io.BytesIO(file_bytes))
+        original_format = image.format
 
-        # Handle palette-based images with transparency (like GIFs)
-        if image.mode == 'P' and 'transparency' in image.info:
-            image = image.convert('RGBA')
-        # Ensure other modes are converted properly for PNG saving
-        elif image.mode not in ['RGB', 'RGBA', 'L']:
-            image = image.convert('RGBA')
-
-        # Save the image to a new byte buffer in PNG format
         output_buffer = io.BytesIO()
-        image.save(output_buffer, format='PNG')
+        save_params = {}
+
+        # Handle transparency for formats that don't support it (like JPEG)
+        if target_format == 'jpeg' and image.mode in ('RGBA', 'LA', 'P'):
+            # Create a white background and paste the image on it
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, (0, 0), image.split()[-1]) # Use alpha channel as mask
+            image = background
+        elif image.mode == 'P' and target_format != 'gif': # Convert indexed color for formats other than GIF
+             image = image.convert('RGBA')
+        
+        if target_format == 'jpeg':
+            save_params['quality'] = 95 # High quality for JPEG
+        
+        image.save(output_buffer, format=format_map[target_format]['format'], **save_params)
         output_buffer.seek(0)
         
-        # Log the usage
-        track_usage('converter', metadata={'original_format': image.format})
+        track_usage('converter', metadata={'from': original_format, 'to': target_format.upper()})
 
-        # Prepare the filename for the download
         base_filename = os.path.splitext(original_filename)[0]
-        download_name = f"{base_filename}.png"
+        ext = format_map[target_format]['extension']
+        download_name = f"{base_filename}.{ext}"
 
         return send_file(
             output_buffer,
-            mimetype='image/png',
+            mimetype=format_map[target_format]['mimetype'],
             as_attachment=True,
             download_name=download_name
         )
@@ -1281,7 +1297,7 @@ def convert_to_png():
         app.logger.error(f"Error during image conversion: {e}")
         traceback.print_exc()
         return jsonify({'error': 'An unexpected error occurred during conversion.'}), 500
-# END: NEW CONVERTER ENDPOINT
+# --- END: REVISED AND ENHANCED CONVERTER ENDPOINT ---
 
 @app.route('/download-image')
 @login_required

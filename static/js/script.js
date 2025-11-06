@@ -413,7 +413,7 @@ function initExtractorTool() {
     }
 }
 
-// --- START: NEW CONVERTER PAGE LOGIC ---
+// --- START: FULLY REVISED CONVERTER PAGE LOGIC ---
 function initConverterPage() {
     const convertForm = document.getElementById('convert-form');
     if (!convertForm) return;
@@ -421,6 +421,7 @@ function initConverterPage() {
     const imageInput = document.getElementById('image-input');
     const fileUploadArea = document.getElementById('file-upload-area');
     const fileUploadPrompt = document.getElementById('file-upload-prompt');
+    const formatSelect = document.getElementById('format-select'); // New selector
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
     const resultsContainer = document.getElementById('convert-results');
@@ -444,7 +445,7 @@ function initConverterPage() {
     const handleFileSelect = (file) => {
         if (file) {
             originalFile = file;
-            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${file.name}</strong></p><span class="file-type-info">Click to change</span>`;
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${file.name}</strong></p><span class="file-type-info">Click or drop to change</span>`;
             resetUI();
         }
     };
@@ -472,14 +473,17 @@ function initConverterPage() {
             return;
         }
 
+        const targetFormat = formatSelect.value;
         const formData = new FormData();
         formData.append('image', originalFile);
+        formData.append('target_format', targetFormat); // Add selected format
 
         resetUI();
         loader.classList.remove('hidden');
         
         try {
-            const response = await fetch('/convert-to-png', { method: 'POST', body: formData });
+            // Updated fetch URL
+            const response = await fetch('/convert-image', { method: 'POST', body: formData });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -495,7 +499,11 @@ function initConverterPage() {
 
             const disposition = response.headers.get('Content-Disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
-            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'converted.png';
+            const filename = filenameMatch ? filenameMatch[1] : `converted.${targetFormat}`;
+            downloadBtn.download = filename;
+            
+            // Update download button text
+            downloadBtn.textContent = `Download ${targetFormat.toUpperCase()}`;
 
             resultsContainer.classList.remove('hidden');
             resultsContainer.scrollIntoView({ behavior: 'smooth' });
@@ -507,7 +515,7 @@ function initConverterPage() {
         }
     });
 }
-// --- END: NEW CONVERTER PAGE LOGIC ---
+// --- END: FULLY REVISED CONVERTER PAGE LOGIC ---
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {

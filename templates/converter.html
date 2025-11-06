@@ -1,24 +1,39 @@
 {% extends "base.html" %}
 
-{% block title %}Free Image Converter to PNG | Convert JPG, WebP, GIF to PNG{% endblock %}
+{% block title %}Free Online Image Converter | Convert JPG, PNG, WebP, GIF{% endblock %}
 
 {% block content %}
 <div class="container">
     <section class="tool-section" style="padding-top: 60px;">
         <div class="tool-container converter-container">
-            <h1>Image Converter to PNG</h1>
-            <p class="tool-subtitle">Quickly convert JPG, WebP, GIF, and other formats to high-quality PNG.</p>
+            <h1>Online Image Converter</h1>
+            <p class="tool-subtitle">Quickly convert your images to JPG, PNG, WebP, GIF, and other popular formats.</p>
             
             <form id="convert-form">
-                <div class="file-upload-area" id="file-upload-area">
-                    <input type="file" id="image-input" accept="image/*" required>
-                    <div id="file-upload-prompt">
-                        <svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-                        <p><strong>Click to upload</strong> or drag and drop</p>
-                        <span class="file-type-info">JPG, PNG, GIF, WebP, BMP, TIFF (Max 10MB)</span>
+                <!-- START: NEW CONTROLS WRAPPER -->
+                <div class="converter-controls">
+                    <div class="file-upload-area" id="file-upload-area">
+                        <input type="file" id="image-input" accept="image/*" required>
+                        <div id="file-upload-prompt">
+                            <svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                            <p><strong>Click to upload</strong> or drag and drop</p>
+                            <span class="file-type-info">JPG, PNG, GIF, WebP, BMP, TIFF (Max 10MB)</span>
+                        </div>
                     </div>
+                    <!-- START: NEW FORMAT SELECTOR -->
+                    <div class="format-selector-container">
+                        <label for="format-select">Convert To:</label>
+                        <select id="format-select" class="auth-input">
+                            <option value="png">PNG</option>
+                            <option value="jpeg">JPEG</option>
+                            <option value="webp">WebP</option>
+                            <option value="gif">GIF</option>
+                        </select>
+                    </div>
+                    <!-- END: NEW FORMAT SELECTOR -->
                 </div>
-                <button type="submit" id="convert-btn" class="btn btn-primary">Convert to PNG</button>
+                <!-- END: NEW CONTROLS WRAPPER -->
+                <button type="submit" id="convert-btn" class="btn btn-primary">Convert Image</button>
             </form>
         </div>
 
@@ -26,11 +41,11 @@
         <div id="convert-error" class="hidden"></div>
 
         <div id="convert-results" class="results-box hidden">
-            <h2>Conversion Successful!</h2>
-            <div class="preview-box" style="margin: 0 auto; max-width: 500px;">
-                <img id="converted-preview" src="#" alt="Converted PNG Image Preview">
+            <h2>Conversion Result</h2>
+            <div class="preview-box" style="margin: 0 auto; max-width: 500px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-primary); padding: 15px;">
+                <img id="converted-preview" src="#" alt="Converted Image Preview" style="max-width: 100%; height: auto; display: block;">
             </div>
-            <a href="#" id="download-btn" class="btn btn-primary" download style="display: block; width: 100%; max-width: 400px; margin: 30px auto 0; text-align: center; padding: 15px; border-radius: 12px;">Download PNG</a>
+            <a href="#" id="download-btn" class="btn btn-primary" download style="display: block; width: 100%; max-width: 400px; margin: 30px auto 0; text-align: center; padding: 15px; border-radius: 12px;">Download Image</a>
         </div>
     </section>
 </div>

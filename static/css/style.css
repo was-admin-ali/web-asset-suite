@@ -1264,17 +1264,17 @@ body.no-scroll {
     /* --- END: Mobile Header Icon Size Adjustments --- */
 
 }
-/* --- 10. COMPRESSOR PAGE STYLES --- */
-.compressor-container {
+/* --- 10. CONVERTER & COMPRESSOR STYLES --- */
+.compressor-container, .converter-container {
     padding-bottom: 40px;
 }
-#compress-form {
+#compress-form, #convert-form {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 25px;
     width: 100%;
-    max-width: 600px;
+    max-width: 700px; /* Adjusted width */
     margin: 0 auto;
 }
 .file-upload-area {
@@ -1315,6 +1315,48 @@ body.no-scroll {
     margin-top: 5px;
     display: block;
 }
+
+/* START: NEW CONVERTER-SPECIFIC STYLES */
+.converter-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+.format-selector-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+.format-selector-container label {
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-align: center;
+}
+#format-select {
+    padding: 12px 15px;
+    font-size: 1rem;
+}
+@media (min-width: 768px) {
+    .converter-controls {
+        flex-direction: row;
+        align-items: center;
+        gap: 30px;
+    }
+    .file-upload-area {
+        flex-grow: 1;
+    }
+    .format-selector-container {
+        flex-direction: column;
+        max-width: 200px;
+        margin: 0;
+    }
+}
+/* END: NEW CONVERTER-SPECIFIC STYLES */
+
 
 /* --- START: ENHANCED COMPRESSOR SLIDER STYLES --- */
 .quality-slider-container {
@@ -1394,13 +1436,14 @@ body.no-scroll {
 }
 /* --- END: ENHANCED COMPRESSOR SLIDER STYLES --- */
 
-#compress-btn {
+#compress-btn, #convert-btn {
     width: 100%;
+    max-width: 400px;
     padding-top: 15px;
     padding-bottom: 15px;
     border-radius: 12px;
 }
-#compress-loader {
+#compress-loader, #convert-loader {
     border: 5px solid var(--border-color);
     border-top: 5px solid var(--accent-primary);
     border-radius: 50%;
@@ -1409,7 +1452,7 @@ body.no-scroll {
     animation: spin 1s linear infinite;
     margin: 40px auto;
 }
-#compress-error {
+#compress-error, #convert-error {
     text-align: center;
     padding: 20px;
     margin-top: 20px;
@@ -1418,7 +1461,7 @@ body.no-scroll {
     background-color: #8C1C1B;
     border: 1px solid #FCA5A5;
 }
-[data-theme="light"] #compress-error {
+[data-theme="light"] #compress-error, [data-theme="light"] #convert-error {
     color: #991B1B;
     background-color: #FEE2E2;
 }
