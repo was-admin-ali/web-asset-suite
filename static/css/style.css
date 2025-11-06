@@ -1265,19 +1265,131 @@ body.no-scroll {
 
 }
 /* --- 10. CONVERTER & COMPRESSOR STYLES --- */
-.compressor-container, .converter-container {
+.converter-container, .compressor-container {
     padding-bottom: 40px;
 }
-#compress-form, #convert-form {
+#compress-form {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 25px;
     width: 100%;
-    max-width: 700px; /* Adjusted width */
+    max-width: 600px;
     margin: 0 auto;
 }
-.file-upload-area {
+
+/* START: NEW ADVANCED CONVERTER STYLES */
+#convert-form {
+    width: 100%;
+}
+#drop-zone {
+    width: 100%;
+    border: 2px dashed var(--border-color);
+    border-radius: 16px;
+    padding: 60px 30px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.3s, background-color 0.3s;
+}
+#drop-zone:hover, #drop-zone.is-dragover {
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+#drop-zone input[type="file"] {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+}
+#file-list-container {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    background-color: var(--bg-primary);
+}
+#file-list {
+    display: flex;
+    flex-direction: column;
+}
+.file-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+.file-item:last-child {
+    border-bottom: none;
+}
+.file-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    margin-bottom: 15px;
+}
+.file-name {
+    font-weight: 600;
+    word-break: break-all;
+}
+.file-size {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+.file-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+.file-actions .format-dropdown {
+    flex-grow: 1;
+    max-width: 120px;
+}
+.status-badge.ready { background-color: var(--accent-secondary); }
+.status-badge.converting { background-color: var(--accent-primary); }
+.status-badge.error { background-color: #8C1C1B; }
+.remove-file-btn {
+    background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 5px; display: flex;
+}
+.remove-file-btn:hover { color: #EF4444; }
+.action-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 16px 16px;
+    gap: 15px;
+}
+#add-more-files-btn { padding: 10px 20px; }
+.convert-all-container { display: flex; align-items: center; gap: 10px; }
+#convert-all-select { width: 150px; }
+#convert-btn { width: 100%; padding: 15px; }
+
+@media (min-width: 768px) {
+    .file-item {
+        flex-direction: row;
+    }
+    .file-info {
+        width: auto;
+        flex-grow: 1;
+        margin-bottom: 0;
+        padding-right: 20px;
+    }
+    .file-actions {
+        width: auto;
+        flex-shrink: 0;
+    }
+    .action-bar {
+        flex-direction: row;
+    }
+    #convert-btn { width: auto; }
+}
+/* END: NEW ADVANCED CONVERTER STYLES */
+
+.file-upload-area { /* Re-using some old styles for consistency */
     width: 100%;
     border: 2px dashed var(--border-color);
     border-radius: 16px;
@@ -1287,33 +1399,15 @@ body.no-scroll {
     position: relative;
     transition: border-color 0.3s, background-color 0.3s;
 }
-.file-upload-area:hover, .file-upload-area.is-dragover {
-    border-color: var(--accent-primary);
-    background-color: color-mix(in srgb, var(--accent-primary) 5%, transparent);
-}
-.file-upload-area input[type="file"] {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-}
 #file-upload-prompt svg {
     color: var(--accent-primary);
     margin-bottom: 15px;
 }
 #file-upload-prompt p {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
+    margin: 0; color: var(--text-primary); font-size: 1.1rem;
 }
 .file-type-info {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-top: 5px;
-    display: block;
+    color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; display: block;
 }
 
 /* START: NEW CONVERTER-SPECIFIC STYLES */
