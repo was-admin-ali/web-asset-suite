@@ -1,6 +1,6 @@
 # --- START OF FINAL, COMPLETE app.py FILE ---
 
-# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid pyppeteer fonttools
+# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid pyppeteer
 import requests
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
@@ -48,9 +48,6 @@ from flask_wtf.csrf import CSRFProtect
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From
 import subprocess # NEW IMPORT for running external tools
-import zipfile # NEW IMPORT
-import mimetypes # NEW IMPORT
-
 
 load_dotenv()
 
@@ -72,96 +69,6 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
-
-# --- START: NEW COMPREHENSIVE CONVERSION MAP ---
-CONVERSION_MAP = {
-    # Archive
-    '7z': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'ace': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'alz': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'arc': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'arj': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'bz2': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'cab': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'cpio': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'deb': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'dmg': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'gz': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'img': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'iso': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'jar': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'lha': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'lz': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'lzma': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'lzo': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'rar': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'rpm': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'tar': {'type': 'archive', 'outputs': ['zip', '7z']}, 'tbz': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'tgz': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'txz': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'xz': {'type': 'archive', 'outputs': ['zip', 'tar']}, 'z': {'type': 'archive', 'outputs': ['zip', 'tar']},
-    'zip': {'type': 'archive', 'outputs': ['7z', 'tar']},
-
-    # Audio
-    'aac': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'ogg']}, 'ac3': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'aac']},
-    'aiff': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'ogg']}, 'alac': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac']},
-    'amr': {'type': 'audio', 'outputs': ['mp3', 'wav']}, 'ape': {'type': 'audio', 'outputs': ['mp3', 'flac', 'wav']},
-    'au': {'type': 'audio', 'outputs': ['mp3', 'wav']}, 'caf': {'type': 'audio', 'outputs': ['mp3', 'wav', 'aac']},
-    'dts': {'type': 'audio', 'outputs': ['mp3', 'wav', 'ac3']}, 'flac': {'type': 'audio', 'outputs': ['mp3', 'wav', 'ogg', 'alac']},
-    'm4a': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac']}, 'm4b': {'type': 'audio', 'outputs': ['mp3', 'm4a']},
-    'mka': {'type': 'audio', 'outputs': ['mp3', 'aac']}, 'mp3': {'type': 'audio', 'outputs': ['wav', 'flac', 'ogg', 'aac']},
-    'oga': {'type': 'audio', 'outputs': ['mp3', 'wav']}, 'ogg': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac']},
-    'opus': {'type': 'audio', 'outputs': ['mp3', 'ogg', 'wav']}, 'ra': {'type': 'audio', 'outputs': ['mp3', 'wav']},
-    'wav': {'type': 'audio', 'outputs': ['mp3', 'flac', 'ogg', 'aac']}, 'wma': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac']},
-
-    # Document / Presentation / Spreadsheet
-    'csv': {'type': 'spreadsheet', 'outputs': ['xlsx', 'ods', 'pdf']}, 'doc': {'type': 'document', 'outputs': ['docx', 'pdf', 'txt', 'html']},
-    'docx': {'type': 'document', 'outputs': ['pdf', 'txt', 'html', 'doc']}, 'html': {'type': 'document', 'outputs': ['pdf', 'docx']},
-    'json': {'type': 'document', 'outputs': ['csv', 'xml']}, 'md': {'type': 'document', 'outputs': ['html', 'pdf', 'docx']},
-    'key': {'type': 'presentation', 'outputs': ['pptx', 'pdf']}, 'odp': {'type': 'presentation', 'outputs': ['pptx', 'pdf']},
-    'ods': {'type': 'spreadsheet', 'outputs': ['xlsx', 'csv', 'pdf']}, 'odt': {'type': 'document', 'outputs': ['docx', 'pdf', 'txt']},
-    'pdf': {'type': 'document', 'outputs': ['docx', 'txt', 'html']}, 'ppt': {'type': 'presentation', 'outputs': ['pptx', 'pdf', 'odp']},
-    'pptx': {'type': 'presentation', 'outputs': ['pdf', 'ppt', 'odp']}, 'rtf': {'type': 'document', 'outputs': ['docx', 'pdf', 'txt']},
-    'sxc': {'type': 'spreadsheet', 'outputs': ['xlsx', 'ods']}, 'sxi': {'type': 'presentation', 'outputs': ['pptx', 'odp']},
-    'sxw': {'type': 'document', 'outputs': ['docx', 'odt']}, 'txt': {'type': 'document', 'outputs': ['pdf', 'docx']},
-    'xls': {'type': 'spreadsheet', 'outputs': ['xlsx', 'csv', 'pdf']}, 'xlsx': {'type': 'spreadsheet', 'outputs': ['csv', 'pdf', 'ods']},
-    'xml': {'type': 'document', 'outputs': ['json']},
-
-    # Ebook
-    'azw': {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']}, 'azw3': {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']},
-    'cbc': {'type': 'ebook', 'outputs': ['epub', 'mobi']}, 'cbr': {'type': 'ebook', 'outputs': ['pdf']},
-    'cbz': {'type': 'ebook', 'outputs': ['pdf']}, 'chm': {'type': 'ebook', 'outputs': ['epub']},
-    'epub': {'type': 'ebook', 'outputs': ['mobi', 'pdf', 'azw3']}, 'fb2': {'type': 'ebook', 'outputs': ['epub', 'mobi']},
-    'lrf': {'type': 'ebook', 'outputs': ['epub']}, 'mobi': {'type': 'ebook', 'outputs': ['epub', 'pdf', 'azw3']},
-    'oeb': {'type': 'ebook', 'outputs': ['epub']}, 'pdb': {'type': 'ebook', 'outputs': ['epub']},
-    'prc': {'type': 'ebook', 'outputs': ['epub', 'mobi']}, 'rb': {'type': 'ebook', 'outputs': ['epub']},
-    'snb': {'type': 'ebook', 'outputs': ['epub']}, 'tcr': {'type': 'ebook', 'outputs': ['epub']},
-
-    # Font
-    'otf': {'type': 'font', 'outputs': ['ttf', 'woff', 'woff2']}, 'ttf': {'type': 'font', 'outputs': ['otf', 'woff', 'woff2']},
-    'woff': {'type': 'font', 'outputs': ['ttf', 'woff2']}, 'woff2': {'type': 'font', 'outputs': ['ttf', 'woff']},
-
-    # Image
-    'avif': {'type': 'image', 'outputs': ['png', 'jpeg', 'webp']}, 'bmp': {'type': 'image', 'outputs': ['png', 'jpeg', 'gif']},
-    'cur': {'type': 'image', 'outputs': ['png', 'ico']}, 'dds': {'type': 'image', 'outputs': ['png']},
-    'dpx': {'type': 'image', 'outputs': ['jpeg', 'png']}, 'eps': {'type': 'vector', 'outputs': ['svg', 'png', 'pdf']},
-    'exr': {'type': 'image', 'outputs': ['png', 'jpeg']}, 'fits': {'type': 'image', 'outputs': ['jpeg', 'png']},
-    'gif': {'type': 'image', 'outputs': ['png', 'jpeg', 'webp']}, 'hdr': {'type': 'image', 'outputs': ['jpeg']},
-    'heic': {'type': 'image', 'outputs': ['jpeg', 'png']}, 'ico': {'type': 'image', 'outputs': ['png']},
-    'jpeg': {'type': 'image', 'outputs': ['png', 'webp', 'gif', 'avif']}, 'jpg': {'type': 'image', 'outputs': ['png', 'webp', 'gif', 'avif']},
-    'jp2': {'type': 'image', 'outputs': ['png', 'jpeg']}, 'pbm': {'type': 'image', 'outputs': ['png']},
-    'pcx': {'type': 'image', 'outputs': ['png', 'jpeg']}, 'pgm': {'type': 'image', 'outputs': ['png']},
-    'png': {'type': 'image', 'outputs': ['jpeg', 'webp', 'gif', 'avif', 'ico']}, 'ppm': {'type': 'image', 'outputs': ['png']},
-    'psd': {'type': 'image', 'outputs': ['png', 'jpeg']}, 'svg': {'type': 'vector', 'outputs': ['png', 'pdf', 'eps']},
-    'tga': {'type': 'image', 'outputs': ['png', 'jpeg']}, 'tiff': {'type': 'image', 'outputs': ['png', 'jpeg']},
-    'webp': {'type': 'image', 'outputs': ['png', 'jpeg', 'gif']}, 'xcf': {'type': 'image', 'outputs': ['png', 'jpeg']},
-    
-    # Vector / CAD
-    'ai': {'type': 'vector', 'outputs': ['svg', 'pdf', 'eps', 'png']}, 'cgm': {'type': 'vector', 'outputs': ['svg']},
-    'dwg': {'type': 'cad', 'outputs': ['dxf', 'pdf']}, 'dxf': {'type': 'cad', 'outputs': ['svg', 'pdf']},
-    'wmf': {'type': 'vector', 'outputs': ['svg']},
-
-    # Video
-    '3g2': {'type': 'video', 'outputs': ['mp4', 'mov', 'avi']}, '3gp': {'type': 'video', 'outputs': ['mp4', 'mov', 'avi']},
-    'avi': {'type': 'video', 'outputs': ['mp4', 'mov', 'webm']}, 'flv': {'type': 'video', 'outputs': ['mp4', 'mov']},
-    'm4v': {'type': 'video', 'outputs': ['mp4', 'mov']}, 'mkv': {'type': 'video', 'outputs': ['mp4', 'mov', 'webm']},
-    'mov': {'type': 'video', 'outputs': ['mp4', 'avi', 'webm']}, 'mp4': {'type': 'video', 'outputs': ['mov', 'avi', 'webm', 'gif']},
-    'mpg': {'type': 'video', 'outputs': ['mp4', 'mov']}, 'ogv': {'type': 'video', 'outputs': ['mp4', 'webm']},
-    'webm': {'type': 'video', 'outputs': ['mp4', 'mov']}, 'wmv': {'type': 'video', 'outputs': ['mp4', 'mov']},
-    'ts': {'type': 'video', 'outputs': ['mp4', 'mkv']}, 'mts': {'type': 'video', 'outputs': ['mp4', 'mkv']},
-    'm2ts': {'type': 'video', 'outputs': ['mp4', 'mkv']},
-}
-# --- END: NEW COMPREHENSIVE CONVERSION MAP ---
-
 
 @app.errorhandler(413)
 @app.errorhandler(RequestEntityTooLarge)
@@ -1317,147 +1224,64 @@ def compress_image() -> FlaskResponse:
             return jsonify({'error': 'An unexpected server error occurred during compression.'}), 500
 # END: DEBUGLOGGING FOR COMPRESS IMAGE
 
-
-# --- START: REVISED & EXPANDED CONVERTER SECTION ---
-
-@app.route('/get-supported-formats', methods=['POST'])
+# START: NEW CONVERTER ENDPOINT
+@app.route('/convert-to-png', methods=['POST'])
 @csrf.exempt
-def get_supported_formats():
-    filename = request.json.get('filename')
-    if not filename:
-        return jsonify({'error': 'Filename missing'}), 400
+def convert_to_png():
+    if not check_and_increment_usage():
+        return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No file provided.'}), 400
     
-    ext = filename.split('.')[-1].lower() if '.' in filename else ''
-    supported = CONVERSION_MAP.get(ext, {})
-    
-    return jsonify({
-        'type': supported.get('type', 'unknown'),
-        'outputs': supported.get('outputs', [])
-    })
+    file = request.files['image']
 
-def convert_file(input_path, output_path, input_ext, output_ext):
-    conv_type = CONVERSION_MAP.get(input_ext, {}).get('type')
-    app.logger.info(f"Dispatching conversion: {input_ext} -> {output_ext} (type: {conv_type})")
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
 
-    if conv_type == 'image':
-        convert_image_with_pillow(input_path, output_path, output_ext)
-    elif conv_type in ['audio', 'video']:
-        if not shutil.which('ffmpeg'): raise FileNotFoundError("'ffmpeg' not found. Please install FFmpeg on the server.")
-        cmd = ['ffmpeg', '-i', input_path, output_path]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-    elif conv_type in ['document', 'presentation', 'spreadsheet', 'cad', 'vector']:
-        if conv_type in ['vector', 'cad'] or output_ext in ['png', 'pdf', 'eps']:
-            if not shutil.which('inkscape'): raise FileNotFoundError("'inkscape' not found. Please install it on the server.")
-            cmd = ['inkscape', input_path, f'--export-filename={output_path}']
-        else: # Documents
-            if not shutil.which('libreoffice'): raise FileNotFoundError("'libreoffice' not found. Please install it on the server.")
-            cmd = ['libreoffice', '--headless', '--convert-to', output_ext, '--outdir', os.path.dirname(output_path), input_path]
-        
-        # --- START: ROBUST FILENAME HANDLING ---
-        outdir = os.path.dirname(output_path)
-        files_before = set(os.listdir(outdir))
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
-        files_after = set(os.listdir(outdir))
-        new_files = files_after - files_before
-        if new_files:
-            generated_file = os.path.join(outdir, new_files.pop())
-            if generated_file != output_path:
-                os.rename(generated_file, output_path)
-        else:
-            raise FileNotFoundError(f"Conversion failed for {input_path}: No output file was generated.")
-        # --- END: ROBUST FILENAME HANDLING ---
-    elif conv_type == 'ebook':
-        if not shutil.which('ebook-convert'): raise FileNotFoundError("'ebook-convert' command not found. Please install Calibre command-line tools.")
-        cmd = ['ebook-convert', input_path, output_path]
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-    elif conv_type == 'font':
-        from fontTools.ttLib import TTFont
-        font = TTFont(input_path)
-        font.save(output_path)
-    else:
-        raise ValueError(f"No conversion path found for {input_ext} to {output_ext}")
+    original_filename = secure_filename(file.filename)
+    file_bytes = file.read()
 
-def convert_image_with_pillow(input_path, output_path, output_ext):
-    image = Image.open(input_path)
-    save_params = {}
-    format = output_ext.upper()
-    if format == 'JPG': format = 'JPEG'
+    if len(file_bytes) > MAX_FILE_SIZE:
+        return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit.'}), 413
 
-    # Handle transparency when converting to formats that don't support it
-    if format in ['JPEG', 'BMP'] and image.mode in ('RGBA', 'LA', 'P'):
-        background = Image.new('RGB', image.size, (255, 255, 255))
-        # Ensure palette images with transparency are handled
+    try:
+        # Use Pillow to open the image from bytes
+        image = Image.open(io.BytesIO(file_bytes))
+
+        # Handle palette-based images with transparency (like GIFs)
         if image.mode == 'P' and 'transparency' in image.info:
             image = image.convert('RGBA')
+        # Ensure other modes are converted properly for PNG saving
+        elif image.mode not in ['RGB', 'RGBA', 'L']:
+            image = image.convert('RGBA')
+
+        # Save the image to a new byte buffer in PNG format
+        output_buffer = io.BytesIO()
+        image.save(output_buffer, format='PNG')
+        output_buffer.seek(0)
         
-        if image.mode == 'RGBA':
-            background.paste(image, (0, 0), image.split()[-1])
-        else: # LA mode
-             background.paste(image, (0, 0))
-        image = background
-    elif image.mode != 'RGB' and format not in ['PNG', 'GIF', 'WEBP', 'TIFF']:
-        image = image.convert('RGB')
+        # Log the usage
+        track_usage('converter', metadata={'original_format': image.format})
 
-    if format == 'JPEG': save_params['quality'] = 95
-    if format == 'WEBP': save_params['quality'] = 90
-    
-    image.save(output_path, format=format, **save_params)
+        # Prepare the filename for the download
+        base_filename = os.path.splitext(original_filename)[0]
+        download_name = f"{base_filename}.png"
 
-@app.route('/convert-files', methods=['POST'])
-@csrf.exempt
-def convert_files():
-    if not check_and_increment_usage():
-        return jsonify({'error': 'Usage limit reached.'}), 403
-    
-    files = request.files.getlist('files[]')
-    targets = request.form.getlist('targets[]')
+        return send_file(
+            output_buffer,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=download_name
+        )
 
-    if not files or not targets or len(files) != len(targets):
-        return jsonify({'error': 'File and target format mismatch.'}), 400
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        output_paths = []
-        for i, file in enumerate(files):
-            try:
-                original_filename = secure_filename(file.filename)
-                input_ext = original_filename.split('.')[-1].lower()
-                output_ext = targets[i].lower()
-                
-                base_name = os.path.splitext(original_filename)[0]
-                input_path = os.path.join(temp_dir, original_filename)
-                output_path = os.path.join(temp_dir, f"{base_name}.{output_ext}")
-
-                file.save(input_path)
-                
-                convert_file(input_path, output_path, input_ext, output_ext)
-                
-                if os.path.exists(output_path):
-                    output_paths.append(output_path)
-                    track_usage('converter', metadata={'from': input_ext, 'to': output_ext})
-                else:
-                    raise FileNotFoundError("Conversion failed: Output file not created.")
-
-            except Exception as e:
-                app.logger.error(f"Failed to convert {file.filename} to {targets[i]}: {e}")
-                if isinstance(e, subprocess.CalledProcessError):
-                    app.logger.error(f"STDERR: {e.stderr}")
-
-        if not output_paths:
-            return jsonify({'error': 'All file conversions failed. Check server logs for details.'}), 500
-
-        if len(output_paths) == 1:
-            return send_file(output_paths[0], as_attachment=True)
-        else:
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                for path in output_paths:
-                    zf.write(path, os.path.basename(path))
-            zip_buffer.seek(0)
-            return send_file(zip_buffer, as_attachment=True, download_name='converted_files.zip', mimetype='application/zip')
-# --- END: REVISED & EXPANDED CONVERTER SECTION ---
-
+    except UnidentifiedImageError:
+        return jsonify({'error': 'Cannot identify image file. The format may be unsupported.'}), 400
+    except Exception as e:
+        app.logger.error(f"Error during image conversion: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'An unexpected error occurred during conversion.'}), 500
+# END: NEW CONVERTER ENDPOINT
 
 @app.route('/download-image')
 @login_required
