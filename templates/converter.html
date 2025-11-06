@@ -9,6 +9,7 @@
             <h1>The Ultimate File Converter</h1>
             <p class="tool-subtitle">Convert images, documents, ebooks, fonts, and more. Fast, free, and secure.</p>
             
+            <!-- This form is now mainly for CSRF and JS interaction -->
             <form id="convert-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -18,7 +19,7 @@
                     <div id="file-upload-prompt">
                         <svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
                         <p><strong>Choose Files</strong> or drag and drop here</p>
-                        <span class="file-type-info">Supports All Major File Formats</span>
+                        <span class="file-type-info">Supports Images, Documents, Ebooks, Fonts & more</span>
                     </div>
                 </div>
 
@@ -32,10 +33,6 @@
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20" style="margin-right: 8px;"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"></path></svg>
                             Add more files
                         </button>
-                        <div class="convert-all-container">
-                            <label for="convert-all-btn">Convert all to:</label>
-                            <button type="button" id="convert-all-btn" class="btn btn-secondary" style="min-width: 120px;">Select...</button>
-                        </div>
                         <button type="submit" id="convert-btn" class="btn btn-primary">Convert</button>
                     </div>
                 </div>
@@ -44,41 +41,21 @@
 
         <div id="convert-loader" class="hidden"></div>
         <div id="convert-error" class="hidden"></div>
+
+        <!-- Results are now handled via direct download -->
     </section>
 </div>
 
-<!-- START: NEW FORMAT SELECTOR MODAL -->
-<div id="format-selector-modal" class="format-selector-modal hidden">
-    <div class="format-selector-content">
-        <div class="format-selector-header">
-            <div class="search-wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
-                <input type="text" id="format-search-input" placeholder="Search Format">
-            </div>
-            <button id="format-modal-close-btn" class="modal-close-btn" style="top: 15px; right: 20px;">&times;</button>
-        </div>
-        <div class="format-selector-body">
-            <div id="format-categories" class="format-categories">
-                <!-- Categories will be populated by JS -->
-            </div>
-            <div id="format-grid" class="format-grid">
-                <!-- Formats will be populated by JS -->
-            </div>
-        </div>
-    </div>
-</div>
-<!-- END: NEW FORMAT SELECTOR MODAL -->
-
-
+<!-- Template for a single file item in the list -->
 <template id="file-item-template">
-    <div class="file-item" data-target-format="">
+    <div class="file-item">
         <div class="file-info">
             <span class="file-name"></span>
             <span class="file-size"></span>
         </div>
         <div class="file-actions">
             <span>to</span>
-            <button type="button" class="format-select-btn btn btn-secondary">Select Format</button>
+            <select class="format-dropdown auth-input"></select>
             <span class="status-badge ready">READY</span>
             <button type="button" class="remove-file-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"></path></svg>
