@@ -425,6 +425,7 @@ function initConverterPage() {
     const addMoreBtn = document.getElementById('add-more-files-btn');
     const convertBtn = document.getElementById('convert-btn');
     const convertAllSelect = document.getElementById('convert-all-select');
+    const convertAllContainer = document.querySelector('.convert-all-container');
     const template = document.getElementById('file-item-template');
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
@@ -435,6 +436,14 @@ function initConverterPage() {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
         loader.classList.add('hidden');
+    };
+
+    const updateActionBarUI = () => {
+        if (files.length > 1) {
+            convertAllContainer.classList.remove('hidden');
+        } else {
+            convertAllContainer.classList.add('hidden');
+        }
     };
 
     const addFiles = (newFiles) => {
@@ -484,10 +493,12 @@ function initConverterPage() {
                     dropZone.classList.remove('hidden');
                 }
                 updateConvertAllOptions();
+                updateActionBarUI();
             });
 
             fileList.appendChild(clone);
         }
+        updateActionBarUI();
     };
 
     const updateConvertAllOptions = () => {
@@ -521,7 +532,13 @@ function initConverterPage() {
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
-    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('click', (e) => {
+        if (e.target !== fileInput) {
+            fileInput.click();
+        }
+    });
+    
     addMoreBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => addFiles(fileInput.files));
 
