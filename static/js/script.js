@@ -413,101 +413,179 @@ function initExtractorTool() {
     }
 }
 
-// --- START: NEW CONVERTER PAGE LOGIC ---
+// --- START: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
 function initConverterPage() {
-    const convertForm = document.getElementById('convert-form');
-    if (!convertForm) return;
+    const form = document.getElementById('convert-form');
+    if (!form) return;
 
-    const imageInput = document.getElementById('image-input');
-    const fileUploadArea = document.getElementById('file-upload-area');
-    const fileUploadPrompt = document.getElementById('file-upload-prompt');
+    const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
+    const fileListContainer = document.getElementById('file-list-container');
+    const fileList = document.getElementById('file-list');
+    const addMoreBtn = document.getElementById('add-more-files-btn');
+    const convertBtn = document.getElementById('convert-btn');
+    const convertAllSelect = document.getElementById('convert-all-select');
+    const template = document.getElementById('file-item-template');
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
-    const resultsContainer = document.getElementById('convert-results');
-    const convertedPreview = document.getElementById('converted-preview');
-    const downloadBtn = document.getElementById('download-btn');
     
-    let originalFile = null;
+    let files = []; // Array to hold File objects
 
-    const showConvertError = (message) => {
+    const showError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
-        resultsContainer.classList.add('hidden');
-    };
-    
-    const resetUI = () => {
-        errorContainer.classList.add('hidden');
-        resultsContainer.classList.add('hidden');
         loader.classList.add('hidden');
     };
 
-    const handleFileSelect = (file) => {
-        if (file) {
-            originalFile = file;
-            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${file.name}</strong></p><span class="file-type-info">Click to change</span>`;
-            resetUI();
+    const addFiles = (newFiles) => {
+        dropZone.classList.add('hidden');
+        fileListContainer.classList.remove('hidden');
+
+        for (const file of newFiles) {
+            const fileId = `${file.name}-${file.lastModified}`;
+            if (files.some(f => `${f.name}-${f.lastModified}` === fileId)) continue; // Prevent duplicates
+
+            files.push(file);
+            const clone = template.content.cloneNode(true);
+            const fileItem = clone.querySelector('.file-item');
+            fileItem.dataset.fileId = fileId;
+            clone.querySelector('.file-name').textContent = file.name;
+            clone.querySelector('.file-size').textContent = formatBytes(file.size);
+            
+            const dropdown = clone.querySelector('.format-dropdown');
+
+            // Fetch supported formats and populate dropdown
+            fetch('/get-supported-formats', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ filename: file.name })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.outputs && data.outputs.length > 0) {
+                    data.outputs.forEach(format => {
+                        const option = new Option(format.toUpperCase(), format);
+                        dropdown.add(option);
+                    });
+                    updateConvertAllOptions();
+                } else {
+                    dropdown.disabled = true;
+                    dropdown.add(new Option('N/A'));
+                    fileItem.querySelector('.status-badge').textContent = 'UNSUPPORTED';
+                    fileItem.querySelector('.status-badge').classList.add('error');
+                }
+            });
+
+            clone.querySelector('.remove-file-btn').addEventListener('click', () => {
+                files = files.filter(f => `${f.name}-${f.lastModified}` !== fileId);
+                document.querySelector(`[data-file-id="${fileId}"]`).remove();
+                if (files.length === 0) {
+                    fileListContainer.classList.add('hidden');
+                    dropZone.classList.remove('hidden');
+                }
+                updateConvertAllOptions();
+            });
+
+            fileList.appendChild(clone);
         }
     };
 
-    imageInput.addEventListener('change', () => {
-        if (imageInput.files.length > 0) {
-            handleFileSelect(imageInput.files[0]);
-        }
-    });
-
-    fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
-    fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
-    fileUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.remove('is-dragover');
-        if (e.dataTransfer.files.length > 0) {
-             handleFileSelect(e.dataTransfer.files[0]);
-        }
-    });
-
-    convertForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!originalFile) {
-            showConvertError('Please select an image to convert.');
+    const updateConvertAllOptions = () => {
+        const allDropdowns = [...fileList.querySelectorAll('.format-dropdown:not(:disabled)')];
+        if (allDropdowns.length === 0) {
+            convertAllSelect.innerHTML = '<option>N/A</option>';
             return;
         }
+        
+        const commonFormats = allDropdowns.reduce((acc, dropdown) => {
+            const formats = [...dropdown.options].map(opt => opt.value);
+            return acc.filter(format => formats.includes(format));
+        }, [...allDropdowns[0].options].map(opt => opt.value));
+
+        convertAllSelect.innerHTML = '<option value="">Select...</option>';
+        commonFormats.forEach(format => {
+            convertAllSelect.add(new Option(format.toUpperCase(), format));
+        });
+    };
+    
+    convertAllSelect.addEventListener('change', () => {
+        if (convertAllSelect.value) {
+            fileList.querySelectorAll('.format-dropdown:not(:disabled)').forEach(dd => {
+                if ([...dd.options].some(opt => opt.value === convertAllSelect.value)) {
+                    dd.value = convertAllSelect.value;
+                }
+            });
+        }
+    });
+
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
+    dropZone.addEventListener('click', () => fileInput.click());
+    addMoreBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => addFiles(fileInput.files));
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (files.length === 0) return;
+
+        loader.classList.remove('hidden');
+        errorContainer.classList.add('hidden');
+        convertBtn.disabled = true;
+        convertBtn.textContent = 'Converting...';
 
         const formData = new FormData();
-        formData.append('image', originalFile);
+        const fileItems = fileList.querySelectorAll('.file-item');
 
-        resetUI();
-        loader.classList.remove('hidden');
-        
+        fileItems.forEach(item => {
+            const fileId = item.dataset.fileId;
+            const file = files.find(f => `${f.name}-${f.lastModified}` === fileId);
+            const targetFormat = item.querySelector('.format-dropdown').value;
+            
+            if (file && !item.querySelector('.format-dropdown').disabled) {
+                formData.append('files[]', file);
+                formData.append('targets[]', targetFormat);
+            }
+        });
+
         try {
-            const response = await fetch('/convert-to-png', { method: 'POST', body: formData });
-
+            const response = await fetch('/convert-files', { method: 'POST', body: formData });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                if(response.status === 403) showUsageLimitModal();
-                throw new Error(errorData.error || `Conversion failed: Server responded with status ${response.status}`);
+                throw new Error(errorData.error || `Server responded with status ${response.status}`);
             }
 
             const blob = await response.blob();
-            const convertedUrl = URL.createObjectURL(blob);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            
+            const disposition = response.headers.get('content-disposition');
+            const filenameMatch = disposition && disposition.match(/filename="(.+?)"/);
+            a.download = filenameMatch ? filenameMatch[1] : 'converted.zip';
+            
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
 
-            convertedPreview.src = convertedUrl;
-            downloadBtn.href = convertedUrl;
-
-            const disposition = response.headers.get('Content-Disposition');
-            const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
-            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'converted.png';
-
-            resultsContainer.classList.remove('hidden');
-            resultsContainer.scrollIntoView({ behavior: 'smooth' });
+            // Reset UI after successful download
+            files = [];
+            fileList.innerHTML = '';
+            fileListContainer.classList.add('hidden');
+            dropZone.classList.remove('hidden');
 
         } catch (error) {
-            showConvertError(error.message);
+            showError(error.message);
         } finally {
             loader.classList.add('hidden');
+            convertBtn.disabled = false;
+            convertBtn.textContent = 'Convert';
         }
     });
 }
-// --- END: NEW CONVERTER PAGE LOGIC ---
+// --- END: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
