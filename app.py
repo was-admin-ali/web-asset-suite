@@ -1,6 +1,6 @@
 # --- START OF FINAL, COMPLETE app.py FILE ---
 
-# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid pyppeteer fonttools pillow-heif pillow-avif-plugin
+# NOTE: This application requires: pip install Pillow Flask-SQLAlchemy Flask-Login Werkzeug Authlib google-analytics-data bleach cssutils sendgrid pyppeteer fonttools
 import requests
 from flask import Flask, render_template, request, jsonify, Response, send_file, redirect, url_for, flash, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
@@ -50,15 +50,7 @@ from sendgrid.helpers.mail import Mail, From
 import subprocess # NEW IMPORT for running external tools
 import zipfile # NEW IMPORT
 import mimetypes # NEW IMPORT
-# Import HEIF/AVIF plugins if they are installed
-try:
-    from PIL import HeifImagePlugin
-except ImportError:
-    pass
-try:
-    import pillow_avif
-except ImportError:
-    pass
+from fontTools.ttLib import TTFont
 
 
 load_dotenv()
@@ -85,85 +77,201 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 # --- START: NEW EXPANDED CONVERSION MAP ---
 CONVERSION_MAP = {
     # 📄 DOCUMENT FORMATS
-    # Text & Office Documents (LibreOffice)
-    'pdf':  {'type': 'document', 'outputs': ['docx', 'txt', 'html', 'odt', 'rtf']},
-    'doc':  {'type': 'document', 'outputs': ['pdf', 'docx', 'txt', 'html', 'odt']},
-    'docx': {'type': 'document', 'outputs': ['pdf', 'doc', 'txt', 'html', 'odt']},
-    'rtf':  {'type': 'document', 'outputs': ['pdf', 'docx', 'txt', 'html', 'odt']},
-    'txt':  {'type': 'document', 'outputs': ['pdf', 'docx', 'html', 'odt']},
-    'odt':  {'type': 'document', 'outputs': ['pdf', 'docx', 'txt', 'html']},
-    'html': {'type': 'document', 'outputs': ['pdf', 'docx', 'txt']},
-    'md':   {'type': 'document', 'outputs': ['pdf', 'docx', 'html']},
-    'xps':  {'type': 'document', 'outputs': ['pdf']},
-    'oxps': {'type': 'document', 'outputs': ['pdf']},
-
-    # Spreadsheets (LibreOffice)
-    'xls':  {'type': 'document', 'outputs': ['xlsx', 'pdf', 'csv', 'ods']},
-    'xlsx': {'type': 'document', 'outputs': ['xls', 'pdf', 'csv', 'ods']},
-    'ods':  {'type': 'document', 'outputs': ['xlsx', 'pdf', 'csv', 'xls']},
-    'csv':  {'type': 'document', 'outputs': ['xlsx', 'ods', 'tsv']},
-    'tsv':  {'type': 'document', 'outputs': ['xlsx', 'ods', 'csv']},
-
-    # Presentations (LibreOffice)
-    'ppt':  {'type': 'document', 'outputs': ['pptx', 'pdf', 'odp']},
-    'pptx': {'type': 'document', 'outputs': ['ppt', 'pdf', 'odp']},
-    'odp':  {'type': 'document', 'outputs': ['pptx', 'pdf', 'ppt']},
-    
-    # Ebooks & Comics (Calibre)
-    'epub': {'type': 'ebook', 'outputs': ['mobi', 'pdf', 'azw3', 'txt']},
-    'mobi': {'type': 'ebook', 'outputs': ['epub', 'pdf', 'azw3', 'txt']},
-    'azw3': {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf', 'txt']},
-    'fb2':  {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']},
-    'lit':  {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']},
-    'lrf':  {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']},
-    'pdb':  {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']},
-    'cbr':  {'type': 'ebook', 'outputs': ['pdf', 'epub']},
-    'cbz':  {'type': 'ebook', 'outputs': ['pdf', 'epub']},
+    # Text & Office Documents
+    'pdf': {'type': 'document', 'outputs': ['docx', 'txt', 'html', 'odt', 'rtf', 'pptx', 'epub']},
+    'doc': {'type': 'document', 'outputs': ['pdf', 'docx', 'odt', 'rtf', 'txt', 'html']},
+    'docx': {'type': 'document', 'outputs': ['pdf', 'doc', 'odt', 'rtf', 'txt', 'html']},
+    'dot': {'type': 'document', 'outputs': ['pdf', 'docx']},
+    'dotx': {'type': 'document', 'outputs': ['pdf', 'docx']},
+    'rtf': {'type': 'document', 'outputs': ['pdf', 'docx', 'odt', 'txt']},
+    'txt': {'type': 'document', 'outputs': ['pdf', 'docx', 'odt']},
+    'odt': {'type': 'document', 'outputs': ['pdf', 'docx', 'doc', 'rtf', 'txt']},
+    'ott': {'type': 'document', 'outputs': ['pdf', 'odt', 'docx']},
+    'fodt': {'type': 'document', 'outputs': ['pdf', 'odt', 'docx']},
+    'html': {'type': 'document', 'outputs': ['pdf', 'docx']},
+    'xhtml': {'type': 'document', 'outputs': ['pdf', 'docx']},
+    'xml': {'type': 'document', 'outputs': ['pdf', 'docx']},
+    'md': {'type': 'document_special', 'outputs': ['pdf', 'docx', 'html']}, # Requires pandoc
+    'json': {'type': 'text', 'outputs': ['xml', 'csv']}, # Requires custom logic
+    'yaml': {'type': 'text', 'outputs': ['json']}, # Requires custom logic
+    # Spreadsheets
+    'xls': {'type': 'spreadsheet', 'outputs': ['xlsx', 'pdf', 'csv', 'ods']},
+    'xlsx': {'type': 'spreadsheet', 'outputs': ['xls', 'pdf', 'csv', 'ods']},
+    'xlsm': {'type': 'spreadsheet', 'outputs': ['xlsx', 'pdf', 'csv']},
+    'xlsb': {'type': 'spreadsheet', 'outputs': ['xlsx', 'pdf', 'csv']},
+    'ods': {'type': 'spreadsheet', 'outputs': ['xlsx', 'pdf', 'csv', 'xls']},
+    'fods': {'type': 'spreadsheet', 'outputs': ['ods', 'xlsx', 'pdf']},
+    'csv': {'type': 'spreadsheet', 'outputs': ['xlsx', 'ods', 'json']},
+    'tsv': {'type': 'spreadsheet', 'outputs': ['csv', 'xlsx']},
+    'sxc': {'type': 'spreadsheet', 'outputs': ['ods', 'xlsx']},
+    'dif': {'type': 'spreadsheet', 'outputs': ['csv', 'xlsx']},
+    # Presentations
+    'ppt': {'type': 'presentation', 'outputs': ['pptx', 'pdf', 'odp']},
+    'pptx': {'type': 'presentation', 'outputs': ['ppt', 'pdf', 'odp']},
+    'odp': {'type': 'presentation', 'outputs': ['pptx', 'pdf', 'ppt']},
+    'fodp': {'type': 'presentation', 'outputs': ['odp', 'pptx', 'pdf']},
+    'sxi': {'type': 'presentation', 'outputs': ['odp', 'pptx']},
+    # Other Document Types
+    'ps': {'type': 'vector', 'outputs': ['pdf']}, # Requires Ghostscript
+    'eps': {'type': 'vector', 'outputs': ['pdf', 'svg', 'png']}, # Requires Inkscape/Ghostscript
+    'djvu': {'type': 'document_special', 'outputs': ['pdf']}, # Requires djvulibre
+    'xps': {'type': 'document_special', 'outputs': ['pdf']}, # Requires mupdf
+    'oxps': {'type': 'document_special', 'outputs': ['pdf']}, # Requires mupdf
+    'vsd': {'type': 'diagram', 'outputs': ['pdf', 'vsdx', 'svg']}, # Requires libreoffice
+    'vsdx': {'type': 'diagram', 'outputs': ['pdf', 'svg']}, # Requires libreoffice
+    # Ebooks
+    'mobi': {'type': 'ebook', 'outputs': ['epub', 'pdf', 'azw3']},
+    'azw': {'type': 'ebook', 'outputs': ['epub', 'pdf']},
+    'azw3': {'type': 'ebook', 'outputs': ['epub', 'mobi', 'pdf']},
+    'epub': {'type': 'ebook', 'outputs': ['mobi', 'pdf', 'azw3']},
+    'fb2': {'type': 'ebook', 'outputs': ['epub', 'mobi']},
+    'lit': {'type': 'ebook', 'outputs': ['epub', 'mobi']},
+    'lrf': {'type': 'ebook', 'outputs': ['epub']},
+    'pdb': {'type': 'ebook', 'outputs': ['epub']},
+    'rb': {'type': 'ebook', 'outputs': ['epub']},
+    'snb': {'type': 'ebook', 'outputs': ['epub']},
+    'tcr': {'type': 'ebook', 'outputs': ['epub']},
+    'chm': {'type': 'document_special', 'outputs': ['html']}, # Requires chmlib
+    'cbr': {'type': 'archive_special', 'outputs': ['pdf']},
+    'cbz': {'type': 'archive_special', 'outputs': ['pdf']},
+    'ibooks': {'type': 'ebook_special', 'outputs': []}, # Proprietary, difficult
 
     # 🖼️ IMAGE FORMATS
-    # Raster Images (Pillow)
-    'jpg':  {'type': 'image', 'outputs': ['png', 'webp', 'gif', 'bmp', 'tiff', 'ico', 'pdf']},
-    'jpeg': {'type': 'image', 'outputs': ['png', 'webp', 'gif', 'bmp', 'tiff', 'ico', 'pdf']},
-    'png':  {'type': 'image', 'outputs': ['jpg', 'webp', 'gif', 'bmp', 'tiff', 'ico', 'pdf']},
+    # Raster Images
+    'jpg': {'type': 'image', 'outputs': ['png', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'ico']},
+    'jpeg': {'type': 'image', 'outputs': ['png', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'ico']},
+    'png': {'type': 'image', 'outputs': ['jpg', 'webp', 'gif', 'bmp', 'tiff', 'pdf', 'ico']},
     'webp': {'type': 'image', 'outputs': ['png', 'jpg', 'gif', 'bmp', 'tiff']},
-    'gif':  {'type': 'image', 'outputs': ['png', 'jpg', 'webp', 'mp4']}, # GIF to MP4 is a video conversion
-    'bmp':  {'type': 'image', 'outputs': ['png', 'jpg', 'webp', 'gif', 'tiff']},
+    'gif': {'type': 'image', 'outputs': ['png', 'jpg', 'webp', 'mp4']}, # mp4 is a special case
+    'bmp': {'type': 'image', 'outputs': ['png', 'jpg', 'webp', 'gif', 'tiff']},
     'tiff': {'type': 'image', 'outputs': ['png', 'jpg', 'webp', 'gif', 'bmp']},
-    'ico':  {'type': 'image', 'outputs': ['png']},
-    'tga':  {'type': 'image', 'outputs': ['png', 'jpg']},
-    'pcx':  {'type': 'image', 'outputs': ['png', 'jpg']},
-    'heic': {'type': 'image', 'outputs': ['jpg', 'png']},
-    'heif': {'type': 'image', 'outputs': ['jpg', 'png']},
-    'avif': {'type': 'image', 'outputs': ['jpg', 'png']},
-    
-    # Vector & Graphics (Inkscape)
-    'svg':  {'type': 'vector', 'outputs': ['png', 'pdf', 'eps']},
-    'eps':  {'type': 'vector', 'outputs': ['png', 'pdf', 'svg']},
-    'ai':   {'type': 'vector', 'outputs': ['svg', 'pdf']},
+    'tif': {'type': 'image', 'outputs': ['png', 'jpg', 'webp', 'gif', 'bmp']},
+    'ico': {'type': 'image', 'outputs': ['png']},
+    'psd': {'type': 'image_special', 'outputs': ['png', 'jpg']}, # Requires ImageMagick
+    'hdr': {'type': 'image_special', 'outputs': ['jpg', 'png']}, # Requires ImageMagick
+    'exr': {'type': 'image_special', 'outputs': ['png', 'jpg']}, # Requires ImageMagick
+    'jfif': {'type': 'image', 'outputs': ['jpg', 'png']},
+    'jp2': {'type': 'image', 'outputs': ['jpg', 'png']},
+    'j2k': {'type': 'image', 'outputs': ['jpg', 'png']},
+    'pnm': {'type': 'image', 'outputs': ['png', 'jpg']},
+    'ppm': {'type': 'image', 'outputs': ['png', 'jpg']},
+    'pgm': {'type': 'image', 'outputs': ['png', 'jpg']},
+    'pbm': {'type': 'image', 'outputs': ['png', 'jpg']},
+    'tga': {'type': 'image', 'outputs': ['png', 'jpg']},
+    'pcx': {'type': 'image', 'outputs': ['png', 'jpg']},
+    'heic': {'type': 'image_special', 'outputs': ['jpg', 'png']}, # Requires libheif
+    'heif': {'type': 'image_special', 'outputs': ['jpg', 'png']}, # Requires libheif
+    'avif': {'type': 'image_special', 'outputs': ['jpg', 'png']}, # Requires libavif
+    # Camera RAW (all require ImageMagick/dcraw)
+    'arw': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'cr2': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'cr3': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'nef': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'nrw': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'orf': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'raf': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'rw2': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'pef': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'srw': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'dng': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'mos': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'mef': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'mrw': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    'x3f': {'type': 'raw_image', 'outputs': ['jpg', 'png', 'tiff']},
+    # Vector & Graphics
+    'svg': {'type': 'vector', 'outputs': ['png', 'pdf', 'eps', 'dxf']},
+    'ai': {'type': 'vector', 'outputs': ['svg', 'pdf', 'png']},
+    'wmf': {'type': 'vector', 'outputs': ['svg', 'png']},
+    'emf': {'type': 'vector', 'outputs': ['svg', 'png']},
+    'fig': {'type': 'design', 'outputs': []}, # Proprietary
+    'sketch': {'type': 'design', 'outputs': []}, # Proprietary
 
-    # 🎵 AUDIO FORMATS (FFmpeg)
-    'mp3':  {'type': 'audio', 'outputs': ['wav', 'flac', 'aac', 'ogg', 'm4a']},
-    'wav':  {'type': 'audio', 'outputs': ['mp3', 'flac', 'aac', 'ogg', 'm4a']},
+    # 🎵 AUDIO FORMATS (all require ffmpeg)
+    'mp3': {'type': 'audio', 'outputs': ['wav', 'flac', 'aac', 'ogg', 'm4a']},
+    'wav': {'type': 'audio', 'outputs': ['mp3', 'flac', 'aac', 'ogg', 'm4a']},
     'flac': {'type': 'audio', 'outputs': ['mp3', 'wav', 'aac', 'ogg', 'm4a']},
-    'aac':  {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'ogg', 'm4a']},
-    'm4a':  {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'aac', 'ogg']},
-    'ogg':  {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'aac', 'm4a']},
-    'wma':  {'type': 'audio', 'outputs': ['mp3', 'wav']},
+    'aac': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'ogg', 'm4a']},
+    'm4a': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'aac', 'ogg']},
+    'ogg': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'aac', 'm4a']},
+    'oga': {'type': 'audio', 'outputs': ['mp3', 'wav', 'flac', 'aac', 'm4a']},
+    'opus': {'type': 'audio', 'outputs': ['ogg', 'mp3', 'wav']},
+    'wma': {'type': 'audio', 'outputs': ['mp3', 'wav']},
+    'amr': {'type': 'audio', 'outputs': ['mp3', 'wav']},
     'aiff': {'type': 'audio', 'outputs': ['mp3', 'wav']},
+    'aif': {'type': 'audio', 'outputs': ['mp3', 'wav']},
+    'au': {'type': 'audio', 'outputs': ['mp3', 'wav']},
+    'mka': {'type': 'audio', 'outputs': ['mp3', 'aac']},
+    'caf': {'type': 'audio', 'outputs': ['mp3', 'wav']},
+    'ac3': {'type': 'audio', 'outputs': ['mp3', 'aac']},
+    'dts': {'type': 'audio', 'outputs': ['mp3', 'aac']},
+    'gsm': {'type': 'audio', 'outputs': ['wav']},
+    'mpc': {'type': 'audio', 'outputs': ['mp3']},
 
-    # 🎬 VIDEO FORMATS (FFmpeg)
-    'mp4':  {'type': 'video', 'outputs': ['mkv', 'mov', 'avi', 'webm', 'gif', 'mp3']},
-    'mkv':  {'type': 'video', 'outputs': ['mp4', 'mov', 'avi', 'webm', 'mp3']},
-    'mov':  {'type': 'video', 'outputs': ['mp4', 'mkv', 'avi', 'webm', 'mp3']},
-    'avi':  {'type': 'video', 'outputs': ['mp4', 'mkv', 'mov', 'webm', 'mp3']},
-    'webm': {'type': 'video', 'outputs': ['mp4', 'mkv', 'mov', 'avi', 'mp3']},
-    'flv':  {'type': 'video', 'outputs': ['mp4', 'mkv']},
-    'wmv':  {'type': 'video', 'outputs': ['mp4', 'mkv']},
+    # 🎬 VIDEO FORMATS (all require ffmpeg)
+    'mp4': {'type': 'video', 'outputs': ['mov', 'mkv', 'avi', 'webm', 'gif', 'mp3']},
+    'mov': {'type': 'video', 'outputs': ['mp4', 'mkv', 'avi', 'webm', 'gif', 'mp3']},
+    'mkv': {'type': 'video', 'outputs': ['mp4', 'mov', 'avi', 'webm', 'gif', 'mp3']},
+    'avi': {'type': 'video', 'outputs': ['mp4', 'mov', 'mkv', 'webm', 'gif', 'mp3']},
+    'wmv': {'type': 'video', 'outputs': ['mp4', 'mov', 'mkv', 'webm']},
+    'flv': {'type': 'video', 'outputs': ['mp4', 'mov', 'mkv', 'webm']},
+    'm4v': {'type': 'video', 'outputs': ['mp4', 'mov', 'mkv']},
+    'webm': {'type': 'video', 'outputs': ['mp4', 'mov', 'mkv', 'gif']},
+    'mpg': {'type': 'video', 'outputs': ['mp4']},
+    'mpeg': {'type': 'video', 'outputs': ['mp4']},
+    '3gp': {'type': 'video', 'outputs': ['mp4']},
+    '3g2': {'type': 'video', 'outputs': ['mp4']},
+    'ogv': {'type': 'video', 'outputs': ['mp4', 'webm']},
+    'mts': {'type': 'video', 'outputs': ['mp4']},
+    'm2ts': {'type': 'video', 'outputs': ['mp4']},
+    'ts': {'type': 'video', 'outputs': ['mp4']},
+    'vob': {'type': 'video', 'outputs': ['mp4']},
+    'asf': {'type': 'video', 'outputs': ['mp4']},
+    'dv': {'type': 'video', 'outputs': ['mp4']},
+    'f4v': {'type': 'video', 'outputs': ['mp4']},
+    'h264': {'type': 'video', 'outputs': ['mp4']},
+    'h265': {'type': 'video', 'outputs': ['mp4']},
+    'hevc': {'type': 'video', 'outputs': ['mp4']},
 
-    # 🔄 FONT FORMATS (fonttools)
-    'ttf':   {'type': 'font', 'outputs': ['woff', 'woff2', 'otf']},
-    'otf':   {'type': 'font', 'outputs': ['woff', 'woff2', 'ttf']},
-    'woff':  {'type': 'font', 'outputs': ['ttf', 'woff2']},
+    # 🗜️ ARCHIVE FORMATS (special handling, requires external tools)
+    'zip': {'type': 'archive', 'outputs': ['7z', 'tar.gz']},
+    'rar': {'type': 'archive', 'outputs': ['zip', '7z']},
+    '7z': {'type': 'archive', 'outputs': ['zip', 'tar.gz']},
+    'tar': {'type': 'archive', 'outputs': ['zip', 'tar.gz']},
+    'tar.gz': {'type': 'archive', 'outputs': ['zip', '7z']},
+    'tar.bz2': {'type': 'archive', 'outputs': ['zip', '7z']},
+    'tar.xz': {'type': 'archive', 'outputs': ['zip', '7z']},
+    'gz': {'type': 'archive_single', 'outputs': []}, # Unpack only
+    'bz2': {'type': 'archive_single', 'outputs': []}, # Unpack only
+    'xz': {'type': 'archive_single', 'outputs': []}, # Unpack only
+
+    # 🔧 CAD & 3D FORMATS
+    'dwg': {'type': 'cad', 'outputs': ['dxf', 'pdf']}, # Requires libredwg
+    'dxf': {'type': 'cad', 'outputs': ['dwg', 'svg', 'pdf']},
+    'iges': {'type': 'cad', 'outputs': ['step']},
+    'igs': {'type': 'cad', 'outputs': ['step']},
+    'step': {'type': 'cad', 'outputs': ['iges']},
+    'stp': {'type': 'cad', 'outputs': ['iges']},
+    'stl': {'type': '3d', 'outputs': ['obj', 'ply', 'gltf']},
+    'obj': {'type': '3d', 'outputs': ['stl', 'ply', 'gltf']},
+    'ply': {'type': '3d', 'outputs': ['stl', 'obj', 'gltf']},
+    'gltf': {'type': '3d', 'outputs': ['glb', 'obj']},
+    'glb': {'type': '3d', 'outputs': ['gltf', 'obj']},
+    '3mf': {'type': '3d', 'outputs': ['stl', 'obj']},
+    'wrl': {'type': '3d', 'outputs': ['obj']},
+    'x3d': {'type': '3d', 'outputs': ['obj']},
+    'dae': {'type': '3d', 'outputs': ['obj', 'fbx']},
+    'fbx': {'type': '3d', 'outputs': ['obj', 'dae']},
+
+    # 🔄 OTHER/MISC FORMATS
+    'ics': {'type': 'misc', 'outputs': ['csv']},
+    'vcf': {'type': 'misc', 'outputs': ['csv']},
+    'msg': {'type': 'misc', 'outputs': ['eml', 'html']},
+    'eml': {'type': 'misc', 'outputs': ['pdf', 'html']},
+    
+    # Fonts
+    'ttf': {'type': 'font', 'outputs': ['woff', 'woff2', 'otf']},
+    'otf': {'type': 'font', 'outputs': ['woff', 'woff2', 'ttf']},
+    'woff': {'type': 'font', 'outputs': ['ttf', 'woff2']},
     'woff2': {'type': 'font', 'outputs': ['ttf', 'woff']},
 }
 # --- END: NEW EXPANDED CONVERSION MAP ---
@@ -1324,7 +1432,7 @@ def compress_image() -> FlaskResponse:
 # END: DEBUGLOGGING FOR COMPRESS IMAGE
 
 
-# --- START: NEW/UPDATED CONVERTER SECTION ---
+# --- START: NEW CONVERTER SECTION ---
 
 @app.route('/get-supported-formats', methods=['POST'])
 @csrf.exempt
@@ -1341,85 +1449,138 @@ def get_supported_formats():
         'outputs': supported.get('outputs', [])
     })
 
-def convert_media_with_ffmpeg(input_path, output_path):
-    """Handles audio and video conversions using FFmpeg."""
-    if not shutil.which('ffmpeg'):
-        raise FileNotFoundError("'ffmpeg' command not found. Please install it on the server.")
-    
-    cmd = ['ffmpeg', '-y', '-i', input_path, output_path]
-    
-    if input_path.lower().endswith('.gif') and output_path.lower().endswith('.mp4'):
-        cmd = ['ffmpeg', '-y', '-i', input_path, '-movflags', 'faststart', '-pix_fmt', 'yuv420p', '-vf', "scale=trunc(iw/2)*2:trunc(ih/2)*2", output_path]
-
-    app.logger.info(f"Running FFmpeg command: {' '.join(cmd)}")
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        app.logger.info("FFmpeg conversion successful.")
-        app.logger.debug(f"FFmpeg stdout: {result.stdout}")
-        app.logger.debug(f"FFmpeg stderr: {result.stderr}")
-    except subprocess.CalledProcessError as e:
-        app.logger.error(f"FFmpeg failed with exit code {e.returncode}")
-        app.logger.error(f"FFmpeg stderr: {e.stderr}")
-        raise e
-
+# --- START: UPDATED convert_image_with_pillow FUNCTION ---
 def convert_image_with_pillow(input_path, output_path, output_ext):
-    """Handles all image-to-image conversions using Pillow."""
+    """Handles all common image-to-image conversions using Pillow."""
     image = Image.open(input_path)
     save_params = {}
-    output_format = output_ext.upper()
+    output_ext_lower = output_ext.lower()
+    
+    # Get Pillow-compatible format string
+    format_map = {
+        'jpg': 'JPEG',
+        'jpeg': 'JPEG',
+        'tif': 'TIFF',
+        'tiff': 'TIFF',
+    }
+    format = format_map.get(output_ext_lower, output_ext_lower.upper())
+    
+    # Handle transparency when converting to formats that don't support it (like JPEG)
+    if format == 'JPEG' and image.mode in ('RGBA', 'LA', 'P'):
+        # Create a white background
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        
+        # If the image is palettized with transparency, convert to RGBA first
+        if image.mode == 'P' and 'transparency' in image.info:
+             image = image.convert('RGBA')
 
-    if output_ext.lower() in ['jpeg', 'jpg']:
-        output_format = 'JPEG'
+        # Paste the image onto the background using its alpha channel as a mask
+        if image.mode == 'RGBA':
+            background.paste(image, (0, 0), image.split()[-1])
+        else: # For 'LA' mode
+            background.paste(image, (0, 0), image.split()[1])
+            
+        image = background
         save_params['quality'] = 95
-        if image.mode in ('RGBA', 'LA', 'P'):
-            background = Image.new('RGB', image.size, (255, 255, 255))
-            alpha_channel = image.split()[-1] if image.mode in ('RGBA', 'LA') else None
-            background.paste(image, (0, 0), alpha_channel)
-            image = background
-    elif image.mode == 'P' and 'transparency' in image.info and output_format != 'GIF':
-        image = image.convert('RGBA')
+        save_params['optimize'] = True
 
-    image.save(output_path, format=output_format, **save_params)
+    # Ensure palettized images are converted properly before saving to non-GIF formats
+    elif image.mode == 'P' and format != 'GIF':
+        if 'transparency' in image.info:
+            image = image.convert('RGBA')
+        else:
+            image = image.convert('RGB')
+            
+    if format == 'PNG':
+        save_params['optimize'] = True
 
+    image.save(output_path, format=format, **save_params)
+# --- END: UPDATED convert_image_with_pillow FUNCTION ---
+
+# --- START: NEW convert_file DISPATCHER FUNCTION ---
 def convert_file(input_path, output_path, input_ext, output_ext):
     """Dispatcher function to call the correct conversion utility."""
-    conv_type = CONVERSION_MAP.get(input_ext, {}).get('type')
+    conv_info = CONVERSION_MAP.get(input_ext, {})
+    conv_type = conv_info.get('type')
     
     app.logger.info(f"Dispatching conversion: {input_ext} -> {output_ext} (type: {conv_type})")
 
-    if input_ext == 'gif' and output_ext == 'mp4':
-        convert_media_with_ffmpeg(input_path, output_path)
-        return
+    # Define tool paths and check for their existence for cleaner logic
+    tool_paths = {
+        'libreoffice': shutil.which('libreoffice'),
+        'inkscape': shutil.which('inkscape'),
+        'ebook-convert': shutil.which('ebook-convert'), # Calibre
+        'ffmpeg': shutil.which('ffmpeg'),
+        'magick': shutil.which('magick') or shutil.which('convert'), # ImageMagick
+        'fontforge': shutil.which('fontforge'),
+    }
     
-    if conv_type in ['audio', 'video']:
-        convert_media_with_ffmpeg(input_path, output_path)
-    elif conv_type == 'image':
+    # 1. Pillow Image Conversion (built-in for common raster formats)
+    if conv_type == 'image':
         convert_image_with_pillow(input_path, output_path, output_ext)
-    elif conv_type in ['document', 'vector']:
-        tool_path = 'inkscape' if conv_type == 'vector' else 'libreoffice'
-        if not shutil.which(tool_path):
-            raise FileNotFoundError(f"'{tool_path}' command not found. Please install it on the server.")
-        
-        if conv_type == 'document':
-             cmd = ['libreoffice', '--headless', '--convert-to', output_ext, '--outdir', os.path.dirname(output_path), input_path]
-        else: # Vector
-            cmd = ['inkscape', input_path, f'--export-filename={output_path}']
-        
-        subprocess.run(cmd, check=True, capture_output=True)
-        if conv_type == 'document':
-            expected_name = os.path.splitext(os.path.basename(input_path))[0] + '.' + output_ext
-            generated_file = os.path.join(os.path.dirname(output_path), expected_name)
-            if os.path.exists(generated_file) and generated_file != output_path:
-                 os.rename(generated_file, output_path)
 
-    elif conv_type == 'ebook':
-        if not shutil.which('ebook-convert'):
-            raise FileNotFoundError("'ebook-convert' command not found. Please install Calibre command-line tools.")
-        cmd = ['ebook-convert', input_path, output_path]
+    # 2. LibreOffice for Documents, Spreadsheets, Presentations, Diagrams
+    elif conv_type in ['document', 'spreadsheet', 'presentation', 'diagram']:
+        if not tool_paths['libreoffice']:
+            raise FileNotFoundError("'libreoffice' command not found. Please install it on the server.")
+        
+        cmd = [tool_paths['libreoffice'], '--headless', '--convert-to', output_ext, '--outdir', os.path.dirname(output_path), input_path]
+        result = subprocess.run(cmd, check=False, capture_output=True)
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(result.returncode, cmd, output=result.stdout, stderr=result.stderr)
+
+        # LibreOffice names the file based on the input, so we must rename it to the expected output path
+        expected_name = os.path.splitext(os.path.basename(input_path))[0] + '.' + output_ext
+        generated_file = os.path.join(os.path.dirname(output_path), expected_name)
+        if os.path.exists(generated_file) and generated_file != output_path:
+             os.rename(generated_file, output_path)
+        elif not os.path.exists(output_path):
+             raise FileNotFoundError(f"LibreOffice conversion failed. Stderr: {result.stderr.decode()}")
+    
+    # 3. Vector Conversion with Inkscape
+    elif conv_type == 'vector':
+        if not tool_paths['inkscape']:
+             raise FileNotFoundError("'inkscape' command not found. Please install it on the server.")
+        cmd = [tool_paths['inkscape'], input_path, f'--export-filename={output_path}']
         subprocess.run(cmd, check=True, capture_output=True)
         
+    # 4. Ebook Conversion with Calibre
+    elif conv_type == 'ebook':
+        if not tool_paths['ebook-convert']:
+            raise FileNotFoundError("'ebook-convert' command not found. Please install Calibre command-line tools.")
+        cmd = [tool_paths['ebook-convert'], input_path, output_path]
+        subprocess.run(cmd, check=True, capture_output=True)
+
+    # 5. Font Conversion (FontForge recommended, with a simple fonttools fallback)
+    elif conv_type == 'font':
+        if tool_paths['fontforge']:
+            script_content = f'Open("{input_path}");\nGenerate("{output_path}");\nClose();'
+            cmd = [tool_paths['fontforge'], '-c', script_content]
+            subprocess.run(cmd, check=True, capture_output=True)
+        else:
+            app.logger.warning("fontforge not found, falling back to basic fonttools conversion.")
+            font = TTFont(input_path)
+            font.save(output_path)
+
+    # 6. Audio/Video Conversion with FFmpeg
+    elif conv_type in ['audio', 'video']:
+        if not tool_paths['ffmpeg']:
+            raise FileNotFoundError("'ffmpeg' command not found. Please install it on the server.")
+        cmd = [tool_paths['ffmpeg'], '-i', input_path, '-y', output_path] # -y overwrites output
+        subprocess.run(cmd, check=True, capture_output=True)
+
+    # 7. Special Image Formats (RAW, PSD, HEIC, etc.) with ImageMagick
+    elif conv_type in ['image_special', 'raw_image']:
+        if not tool_paths['magick']:
+            raise FileNotFoundError("'magick' (ImageMagick) command not found. It is required for special image formats.")
+        cmd = [tool_paths['magick'], input_path, output_path]
+        subprocess.run(cmd, check=True, capture_output=True)
+
     else:
-        raise ValueError(f"No conversion path found for {input_ext} to {output_ext}")
+        # Placeholder for other complex types like CAD, 3D, Archives
+        raise ValueError(f"Conversion logic for type '{conv_type}' (from {input_ext} to {output_ext}) is not yet implemented.")
+# --- END: NEW convert_file DISPATCHER FUNCTION ---
+
 
 @app.route('/convert-files', methods=['POST'])
 @csrf.exempt
@@ -1458,11 +1619,11 @@ def convert_files():
             except Exception as e:
                 app.logger.error(f"Failed to convert {file.filename}: {e}")
                 if isinstance(e, subprocess.CalledProcessError):
-                    app.logger.error(f"Tool stderr: {e.stderr.decode('utf-8', errors='ignore')}")
+                    app.logger.error(f"Tool STDERR: {e.stderr.decode()}")
 
 
         if not output_paths:
-            return jsonify({'error': 'All file conversions failed. Check server logs for details.'}), 500
+            return jsonify({'error': 'All file conversions failed. The format may be unsupported or the file corrupt.'}), 500
 
         if len(output_paths) == 1:
             return send_file(output_paths[0], as_attachment=True)
@@ -1474,7 +1635,7 @@ def convert_files():
             zip_buffer.seek(0)
             return send_file(zip_buffer, as_attachment=True, download_name='converted_files.zip', mimetype='application/zip')
 
-# --- END: NEW/UPDATED CONVERTER SECTION ---
+# --- END: NEW CONVERTER SECTION ---
 
 @app.route('/download-image')
 @login_required

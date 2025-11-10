@@ -413,7 +413,7 @@ function initExtractorTool() {
     }
 }
 
-// --- START: FULLY REVISED AND CORRECTED CONVERTER PAGE LOGIC ---
+// --- START: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
 function initConverterPage() {
     const form = document.getElementById('convert-form');
     if (!form) return;
@@ -425,7 +425,6 @@ function initConverterPage() {
     const addMoreBtn = document.getElementById('add-more-files-btn');
     const convertBtn = document.getElementById('convert-btn');
     const convertAllSelect = document.getElementById('convert-all-select');
-    const convertAllContainer = document.querySelector('.convert-all-container');
     const template = document.getElementById('file-item-template');
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
@@ -437,25 +436,14 @@ function initConverterPage() {
         errorContainer.classList.remove('hidden');
         loader.classList.add('hidden');
     };
-    
-    const updateUIState = () => {
-        const hasFiles = files.length > 0;
-        dropZone.classList.toggle('hidden', hasFiles);
-        fileListContainer.classList.toggle('hidden', !hasFiles);
-
-        if (convertAllContainer) {
-            convertAllContainer.classList.toggle('hidden', files.length <= 1);
-        }
-
-        if (hasFiles) {
-            updateConvertAllOptions();
-        }
-    };
 
     const addFiles = (newFiles) => {
+        dropZone.classList.add('hidden');
+        fileListContainer.classList.remove('hidden');
+
         for (const file of newFiles) {
             const fileId = `${file.name}-${file.lastModified}`;
-            if (files.some(f => `${f.name}-${f.lastModified}` === fileId)) continue;
+            if (files.some(f => `${f.name}-${f.lastModified}` === fileId)) continue; // Prevent duplicates
 
             files.push(file);
             const clone = template.content.cloneNode(true);
@@ -466,6 +454,7 @@ function initConverterPage() {
             
             const dropdown = clone.querySelector('.format-dropdown');
 
+            // Fetch supported formats and populate dropdown
             fetch('/get-supported-formats', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -490,12 +479,15 @@ function initConverterPage() {
             clone.querySelector('.remove-file-btn').addEventListener('click', () => {
                 files = files.filter(f => `${f.name}-${f.lastModified}` !== fileId);
                 document.querySelector(`[data-file-id="${fileId}"]`).remove();
-                updateUIState();
+                if (files.length === 0) {
+                    fileListContainer.classList.add('hidden');
+                    dropZone.classList.remove('hidden');
+                }
+                updateConvertAllOptions();
             });
 
             fileList.appendChild(clone);
         }
-        updateUIState();
     };
 
     const updateConvertAllOptions = () => {
@@ -531,12 +523,7 @@ function initConverterPage() {
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
     dropZone.addEventListener('click', () => fileInput.click());
     addMoreBtn.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', () => {
-        addFiles(fileInput.files);
-        // FIX: Reset input value to allow selecting the same file again
-        fileInput.value = null;
-    });
+    fileInput.addEventListener('change', () => addFiles(fileInput.files));
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -583,9 +570,11 @@ function initConverterPage() {
             window.URL.revokeObjectURL(url);
             a.remove();
 
+            // Reset UI after successful download
             files = [];
             fileList.innerHTML = '';
-            updateUIState();
+            fileListContainer.classList.add('hidden');
+            dropZone.classList.remove('hidden');
 
         } catch (error) {
             showError(error.message);
@@ -596,7 +585,7 @@ function initConverterPage() {
         }
     });
 }
-// --- END: FULLY REVISED AND CORRECTED CONVERTER PAGE LOGIC ---
+// --- END: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
