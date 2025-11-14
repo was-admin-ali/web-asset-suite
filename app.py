@@ -1347,6 +1347,14 @@ def compress_image() -> FlaskResponse:
 
 # --- START: FULLY REVISED CONVERTER SECTION ---
 
+# NEW: Endpoint to send the entire conversion map to the frontend
+@app.route('/api/get-all-formats')
+@csrf.exempt
+def get_all_formats():
+    return jsonify(CONVERSION_MAP)
+
+
+# OLD ENDPOINT: No longer used by the primary UI but kept for potential direct API use.
 @app.route('/get-supported-formats', methods=['POST'])
 @csrf.exempt
 def get_supported_formats():

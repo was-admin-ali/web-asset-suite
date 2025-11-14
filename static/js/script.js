@@ -413,11 +413,12 @@ function initExtractorTool() {
     }
 }
 
-// --- START: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
+// --- START: NEW, FULLY REVISED CONVERTER PAGE LOGIC (v2) ---
 function initConverterPage() {
     const form = document.getElementById('convert-form');
     if (!form) return;
 
+    // DOM Elements
     const fileInput = document.getElementById('file-input');
     const dropZone = document.getElementById('drop-zone');
     const fileListContainer = document.getElementById('file-list-container');
@@ -429,7 +430,10 @@ function initConverterPage() {
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
     
+    // State
     let files = []; // Array to hold File objects
+    let allFormats = null; // To store the entire conversion map
+    let groupedFormats = null; // To store formats grouped by category
 
     const showError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
@@ -437,13 +441,73 @@ function initConverterPage() {
         loader.classList.add('hidden');
     };
 
+    // Fetches all formats and prepares them for the UI
+    const fetchAllFormats = async () => {
+        try {
+            const response = await fetch('/api/get-all-formats');
+            if (!response.ok) throw new Error('Could not load format data.');
+            allFormats = await response.json();
+
+            // Group formats by type for creating dropdowns
+            groupedFormats = {};
+            const allOutputFormats = new Set();
+            for (const inputFormat in allFormats) {
+                const info = allFormats[inputFormat];
+                const type = info.type;
+                if (!groupedFormats[type]) {
+                    groupedFormats[type] = new Set();
+                }
+                info.outputs.forEach(output => {
+                    groupedFormats[type].add(output);
+                    allOutputFormats.add(output);
+                });
+            }
+             // Sort each category alphabetically
+            for (const type in groupedFormats) {
+                groupedFormats[type] = Array.from(groupedFormats[type]).sort();
+            }
+
+            // Populate the "Convert all to" dropdown
+            populateCategorizedDropdown(convertAllSelect, Array.from(allOutputFormats).sort());
+
+        } catch (error) {
+            console.error(error);
+            showError('Could not initialize the converter. Please refresh the page.');
+        }
+    };
+    
+    // Helper to populate a <select> with <optgroup>
+    const populateCategorizedDropdown = (selectElement, validOutputs = []) => {
+        selectElement.innerHTML = '<option value="">Select...</option>';
+        if (!groupedFormats) return;
+
+        const sortedCategories = Object.keys(groupedFormats).sort();
+
+        for (const category of sortedCategories) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = category.charAt(0).toUpperCase() + category.slice(1);
+            
+            const formats = groupedFormats[category] || [];
+            formats.forEach(format => {
+                const option = new Option(format.toUpperCase(), format);
+                // If a list of valid outputs is provided, disable invalid ones
+                if (validOutputs.length > 0 && !validOutputs.includes(format)) {
+                    option.disabled = true;
+                }
+                optgroup.appendChild(option);
+            });
+            selectElement.appendChild(optgroup);
+        }
+    };
+
+
     const addFiles = (newFiles) => {
         dropZone.classList.add('hidden');
         fileListContainer.classList.remove('hidden');
 
         for (const file of newFiles) {
             const fileId = `${file.name}-${file.lastModified}`;
-            if (files.some(f => `${f.name}-${f.lastModified}` === fileId)) continue; // Prevent duplicates
+            if (files.some(f => `${f.name}-${f.lastModified}` === fileId)) continue; 
 
             files.push(file);
             const clone = template.content.cloneNode(true);
@@ -453,28 +517,17 @@ function initConverterPage() {
             clone.querySelector('.file-size').textContent = formatBytes(file.size);
             
             const dropdown = clone.querySelector('.format-dropdown');
+            const inputExt = file.name.split('.').pop().toLowerCase();
+            const validOutputs = allFormats[inputExt]?.outputs || [];
 
-            // Fetch supported formats and populate dropdown
-            fetch('/get-supported-formats', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ filename: file.name })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.outputs && data.outputs.length > 0) {
-                    data.outputs.forEach(format => {
-                        const option = new Option(format.toUpperCase(), format);
-                        dropdown.add(option);
-                    });
-                    updateConvertAllOptions();
-                } else {
-                    dropdown.disabled = true;
-                    dropdown.add(new Option('N/A'));
-                    fileItem.querySelector('.status-badge').textContent = 'UNSUPPORTED';
-                    fileItem.querySelector('.status-badge').classList.add('error');
-                }
-            });
+            if (validOutputs.length > 0) {
+                populateCategorizedDropdown(dropdown, validOutputs);
+            } else {
+                dropdown.innerHTML = '<option>Unsupported</option>';
+                dropdown.disabled = true;
+                fileItem.querySelector('.status-badge').textContent = 'ERROR';
+                fileItem.querySelector('.status-badge').classList.add('error');
+            }
 
             clone.querySelector('.remove-file-btn').addEventListener('click', () => {
                 files = files.filter(f => `${f.name}-${f.lastModified}` !== fileId);
@@ -483,41 +536,26 @@ function initConverterPage() {
                     fileListContainer.classList.add('hidden');
                     dropZone.classList.remove('hidden');
                 }
-                updateConvertAllOptions();
             });
 
             fileList.appendChild(clone);
         }
     };
-
-    const updateConvertAllOptions = () => {
-        const allDropdowns = [...fileList.querySelectorAll('.format-dropdown:not(:disabled)')];
-        if (allDropdowns.length === 0) {
-            convertAllSelect.innerHTML = '<option>N/A</option>';
-            return;
-        }
-        
-        const commonFormats = allDropdowns.reduce((acc, dropdown) => {
-            const formats = [...dropdown.options].map(opt => opt.value);
-            return acc.filter(format => formats.includes(format));
-        }, [...allDropdowns[0].options].map(opt => opt.value));
-
-        convertAllSelect.innerHTML = '<option value="">Select...</option>';
-        commonFormats.forEach(format => {
-            convertAllSelect.add(new Option(format.toUpperCase(), format));
-        });
-    };
     
     convertAllSelect.addEventListener('change', () => {
-        if (convertAllSelect.value) {
-            fileList.querySelectorAll('.format-dropdown:not(:disabled)').forEach(dd => {
-                if ([...dd.options].some(opt => opt.value === convertAllSelect.value)) {
-                    dd.value = convertAllSelect.value;
+        const targetFormat = convertAllSelect.value;
+        if (targetFormat) {
+            fileList.querySelectorAll('.format-dropdown').forEach(dd => {
+                // Check if the target format is an enabled option in this dropdown
+                const option = dd.querySelector(`option[value="${targetFormat}"]`);
+                if (option && !option.disabled) {
+                    dd.value = targetFormat;
                 }
             });
         }
     });
 
+    // Event Listeners
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
@@ -542,11 +580,18 @@ function initConverterPage() {
             const file = files.find(f => `${f.name}-${f.lastModified}` === fileId);
             const targetFormat = item.querySelector('.format-dropdown').value;
             
-            if (file && !item.querySelector('.format-dropdown').disabled) {
+            if (file && targetFormat && !item.querySelector('.format-dropdown').disabled) {
                 formData.append('files[]', file);
                 formData.append('targets[]', targetFormat);
             }
         });
+        
+        if (formData.getAll('files[]').length === 0) {
+            showError("No valid files or formats selected for conversion.");
+            convertBtn.disabled = false;
+            convertBtn.textContent = 'Convert';
+            return;
+        }
 
         try {
             const response = await fetch('/convert-files', { method: 'POST', body: formData });
@@ -584,8 +629,12 @@ function initConverterPage() {
             convertBtn.textContent = 'Convert';
         }
     });
+
+    // Initialize by fetching all formats
+    fetchAllFormats();
 }
-// --- END: NEW, FULLY REVISED CONVERTER PAGE LOGIC ---
+// --- END: NEW, FULLY REVISED CONVERTER PAGE LOGIC (v2) ---
+
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
