@@ -1341,26 +1341,6 @@ body.no-scroll {
     gap: 10px;
     width: 100%;
 }
-
-/* START: CONVERTER UI FIX STYLES */
-.target-format-display {
-    font-weight: 700;
-    color: var(--text-primary);
-    min-width: 60px;
-    text-align: center;
-}
-.target-format-display::before {
-    content: 'to ';
-    font-weight: 400;
-    color: var(--text-secondary);
-    margin-right: 5px;
-}
-.status-badge.incompatible {
-    background-color: #8C1C1B;
-    color: white;
-}
-/* END: CONVERTER UI FIX STYLES */
-
 .file-actions .format-dropdown {
     flex-grow: 1;
     max-width: 120px;
@@ -1404,8 +1384,13 @@ body.no-scroll {
     }
     .action-bar {
         flex-direction: row;
+        justify-content: space-between; /* This will push the button to the right */
     }
-    #convert-btn { width: auto; }
+    /* START: MODIFICATION - Make action bar button auto-width on desktop */
+    .action-bar .btn {
+        width: auto;
+    }
+    /* END: MODIFICATION */
 }
 /* END: NEW ADVANCED CONVERTER STYLES */
 

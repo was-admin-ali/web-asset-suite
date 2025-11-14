@@ -9,11 +9,9 @@
             <h1>The Ultimate File Converter</h1>
             <p class="tool-subtitle">Convert images, documents, ebooks, fonts, and more. Fast, free, and secure.</p>
             
-            <!-- This form is now mainly for CSRF and JS interaction -->
             <form id="convert-form" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <!-- File Drop Area (Initially Visible) -->
                 <div id="drop-zone" class="file-upload-area">
                     <input type="file" id="file-input" multiple>
                     <div id="file-upload-prompt">
@@ -23,7 +21,6 @@
                     </div>
                 </div>
 
-                <!-- File List Area (Initially Hidden) -->
                 <div id="file-list-container" class="hidden">
                     <div id="file-list">
                         <!-- File items will be added here by JavaScript -->
@@ -33,11 +30,9 @@
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20" style="margin-right: 8px;"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"></path></svg>
                             Add more files
                         </button>
-                        <div class="convert-all-container">
-                            <label for="convert-all-select">Convert all to:</label>
-                            <select id="convert-all-select" class="auth-input"></select>
-                        </div>
+                        <!-- START: MODIFICATION - Removed the "Convert all to" container -->
                         <button type="submit" id="convert-btn" class="btn btn-primary">Convert</button>
+                        <!-- END: MODIFICATION -->
                     </div>
                 </div>
             </form>
@@ -45,8 +40,6 @@
 
         <div id="convert-loader" class="hidden"></div>
         <div id="convert-error" class="hidden"></div>
-
-        <!-- Results are now handled via direct download -->
     </section>
 </div>
 
@@ -58,10 +51,10 @@
             <span class="file-size"></span>
         </div>
         <div class="file-actions">
-            <!-- START: MODIFICATION -->
-            <!-- The individual dropdown is removed and replaced by these two spans -->
-            <span class="target-format-display"></span>
-            <span class="status-badge">WAITING</span>
+            <!-- START: MODIFICATION - Re-added individual dropdown -->
+            <span>to</span>
+            <select class="format-dropdown auth-input"></select>
+            <span class="status-badge ready">READY</span>
             <!-- END: MODIFICATION -->
             <button type="button" class="remove-file-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"></path></svg>
