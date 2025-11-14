@@ -413,12 +413,11 @@ function initExtractorTool() {
     }
 }
 
-// --- START: FINAL CONVERTER LOGIC (v3 - Individual Dropdowns) ---
+// --- START: RESTORED CONVERTER LOGIC (v1 - Individual Dropdowns) ---
 function initConverterPage() {
     const form = document.getElementById('convert-form');
     if (!form) return;
 
-    // DOM Elements
     const fileInput = document.getElementById('file-input');
     const dropZone = document.getElementById('drop-zone');
     const fileListContainer = document.getElementById('file-list-container');
@@ -429,61 +428,12 @@ function initConverterPage() {
     const loader = document.getElementById('convert-loader');
     const errorContainer = document.getElementById('convert-error');
     
-    // State
-    let files = [];
-    let allFormats = null;
-    let groupedFormats = null;
+    let files = []; 
 
     const showError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
         loader.classList.add('hidden');
-    };
-
-    const fetchAllFormats = async () => {
-        try {
-            const response = await fetch('/api/get-all-formats');
-            if (!response.ok) throw new Error('Could not load format data.');
-            allFormats = await response.json();
-            
-            groupedFormats = {};
-            for (const inputFormat in allFormats) {
-                const info = allFormats[inputFormat];
-                const type = info.type;
-                if (!groupedFormats[type]) {
-                    groupedFormats[type] = new Set();
-                }
-                info.outputs.forEach(output => groupedFormats[type].add(output));
-            }
-            for (const type in groupedFormats) {
-                groupedFormats[type] = Array.from(groupedFormats[type]).sort();
-            }
-        } catch (error) {
-            console.error(error);
-            showError('Could not initialize the converter. Please refresh the page.');
-        }
-    };
-    
-    const populateCategorizedDropdown = (selectElement, validOutputs = []) => {
-        selectElement.innerHTML = '<option value="">Select...</option>';
-        if (!groupedFormats) return;
-
-        const sortedCategories = Object.keys(groupedFormats).sort();
-
-        for (const category of sortedCategories) {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = category.charAt(0).toUpperCase() + category.slice(1);
-            
-            const formats = groupedFormats[category] || [];
-            formats.forEach(format => {
-                const option = new Option(format.toUpperCase(), format);
-                if (validOutputs.length > 0 && !validOutputs.includes(format)) {
-                    option.disabled = true;
-                }
-                optgroup.appendChild(option);
-            });
-            selectElement.appendChild(optgroup);
-        }
     };
 
     const addFiles = (newFiles) => {
@@ -502,18 +452,26 @@ function initConverterPage() {
             clone.querySelector('.file-size').textContent = formatBytes(file.size);
             
             const dropdown = clone.querySelector('.format-dropdown');
-            const inputExt = file.name.split('.').pop().toLowerCase();
-            const validOutputs = allFormats[inputExt]?.outputs || [];
 
-            if (validOutputs.length > 0) {
-                populateCategorizedDropdown(dropdown, validOutputs);
-            } else {
-                dropdown.innerHTML = '<option>Unsupported</option>';
-                dropdown.disabled = true;
-                const statusBadge = fileItem.querySelector('.status-badge');
-                statusBadge.textContent = 'ERROR';
-                statusBadge.className = 'status-badge error';
-            }
+            fetch('/get-supported-formats', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ filename: file.name })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.outputs && data.outputs.length > 0) {
+                    data.outputs.forEach(format => {
+                        const option = new Option(format.toUpperCase(), format);
+                        dropdown.add(option);
+                    });
+                } else {
+                    dropdown.disabled = true;
+                    dropdown.add(new Option('N/A'));
+                    fileItem.querySelector('.status-badge').textContent = 'UNSUPPORTED';
+                    fileItem.querySelector('.status-badge').classList.add('error');
+                }
+            });
 
             clone.querySelector('.remove-file-btn').addEventListener('click', () => {
                 files = files.filter(f => `${f.name}-${f.lastModified}` !== fileId);
@@ -527,7 +485,7 @@ function initConverterPage() {
             fileList.appendChild(clone);
         }
     };
-    
+
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
@@ -537,7 +495,8 @@ function initConverterPage() {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+        if (files.length === 0) return;
+
         loader.classList.remove('hidden');
         errorContainer.classList.add('hidden');
         convertBtn.disabled = true;
@@ -545,28 +504,17 @@ function initConverterPage() {
 
         const formData = new FormData();
         const fileItems = fileList.querySelectorAll('.file-item');
-        let filesToConvertCount = 0;
 
         fileItems.forEach(item => {
             const fileId = item.dataset.fileId;
             const file = files.find(f => `${f.name}-${f.lastModified}` === fileId);
-            const dropdown = item.querySelector('.format-dropdown');
-            const targetFormat = dropdown.value;
+            const targetFormat = item.querySelector('.format-dropdown').value;
             
-            if (file && targetFormat && !dropdown.disabled) {
+            if (file && targetFormat && !item.querySelector('.format-dropdown').disabled) {
                 formData.append('files[]', file);
                 formData.append('targets[]', targetFormat);
-                filesToConvertCount++;
             }
         });
-        
-        if (filesToConvertCount === 0) {
-            showError("No files with a valid target format were selected.");
-            loader.classList.add('hidden');
-            convertBtn.disabled = false;
-            convertBtn.textContent = 'Convert';
-            return;
-        }
 
         try {
             const response = await fetch('/convert-files', { method: 'POST', body: formData });
@@ -603,10 +551,9 @@ function initConverterPage() {
             convertBtn.textContent = 'Convert';
         }
     });
-
-    fetchAllFormats();
 }
-// --- END: FINAL CONVERTER LOGIC ---
+// --- END: RESTORED CONVERTER LOGIC ---
+
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
