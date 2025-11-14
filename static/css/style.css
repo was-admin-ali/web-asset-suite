@@ -807,7 +807,7 @@ section {
 
 /* --- 8. HELPERS --- */
 .hidden { display: none !important; }
-#loader, #convert-loader, #compress-loader {
+#loader, #compress-loader {
     border: 5px solid var(--border-color);
     border-top: 5px solid var(--accent-primary);
     border-radius: 50%;
@@ -818,7 +818,7 @@ section {
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-#error-message, #convert-error, #compress-error {
+#error-message, #compress-error {
     text-align: center;
     padding: 40px;
     margin-top: 40px;
@@ -828,7 +828,6 @@ section {
     border: 1px solid #FCA5A5;
 }
 [data-theme="light"] #error-message,
-[data-theme="light"] #convert-error,
 [data-theme="light"] #compress-error {
     color: #991B1B;
     background-color: #FEE2E2;
@@ -1134,8 +1133,7 @@ body.no-scroll {
     /* --- START: Full-width Buttons on Mobile --- */
     #extract-form button,
     #compress-btn,
-    #generate-pairing-btn,
-    #convert-btn {
+    #generate-pairing-btn {
         width: 100%;
         padding-top: 15px;
         padding-bottom: 15px;
@@ -1264,8 +1262,8 @@ body.no-scroll {
     /* --- END: Mobile Header Icon Size Adjustments --- */
 
 }
-/* --- 10. CONVERTER & COMPRESSOR STYLES --- */
-.converter-container, .compressor-container {
+/* --- 10. COMPRESSOR STYLES --- */
+.compressor-container {
     padding-bottom: 40px;
 }
 #compress-form {
@@ -1277,122 +1275,6 @@ body.no-scroll {
     max-width: 600px;
     margin: 0 auto;
 }
-
-/* START: NEW ADVANCED CONVERTER STYLES */
-#convert-form {
-    width: 100%;
-}
-#drop-zone {
-    width: 100%;
-    border: 2px dashed var(--border-color);
-    border-radius: 16px;
-    padding: 60px 30px;
-    text-align: center;
-    cursor: pointer;
-    position: relative;
-    transition: border-color 0.3s, background-color 0.3s;
-}
-#drop-zone:hover, #drop-zone.is-dragover {
-    border-color: var(--accent-primary);
-    background-color: color-mix(in srgb, var(--accent-primary) 5%, transparent);
-}
-#drop-zone input[type="file"] {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
-}
-#file-list-container {
-    width: 100%;
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    background-color: var(--bg-primary);
-}
-#file-list {
-    display: flex;
-    flex-direction: column;
-}
-.file-item {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid var(--border-color);
-}
-.file-item:last-child {
-    border-bottom: none;
-}
-.file-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    width: 100%;
-    margin-bottom: 15px;
-}
-.file-name {
-    font-weight: 600;
-    word-break: break-all;
-}
-.file-size {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-.file-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-}
-.file-actions .format-dropdown {
-    flex-grow: 1;
-    max-width: 120px;
-}
-.status-badge.ready { background-color: var(--accent-secondary); }
-.status-badge.converting { background-color: var(--accent-primary); }
-.status-badge.error { background-color: #8C1C1B; }
-.remove-file-btn {
-    background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 5px; display: flex;
-}
-.remove-file-btn:hover { color: #EF4444; }
-.action-bar {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    background-color: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    border-radius: 0 0 16px 16px;
-    gap: 15px;
-}
-#add-more-files-btn { padding: 10px 20px; }
-.convert-all-container { display: flex; align-items: center; gap: 10px; }
-#convert-all-select { width: 150px; }
-#convert-btn { width: 100%; padding: 15px; }
-
-@media (min-width: 768px) {
-    .file-item {
-        flex-direction: row;
-    }
-    .file-info {
-        width: auto;
-        flex-grow: 1;
-        margin-bottom: 0;
-        padding-right: 20px;
-    }
-    .file-actions {
-        width: auto;
-        flex-shrink: 0;
-    }
-    .action-bar {
-        flex-direction: row;
-        justify-content: space-between; /* This will push the button to the right */
-    }
-    /* START: MODIFICATION - Make action bar button auto-width on desktop */
-    .action-bar .btn {
-        width: auto;
-    }
-    /* END: MODIFICATION */
-}
-/* END: NEW ADVANCED CONVERTER STYLES */
 
 .file-upload-area { /* Re-using some old styles for consistency */
     width: 100%;
@@ -1414,48 +1296,6 @@ body.no-scroll {
 .file-type-info {
     color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; display: block;
 }
-
-/* START: NEW CONVERTER-SPECIFIC STYLES */
-.converter-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    width: 100%;
-}
-.format-selector-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-}
-.format-selector-container label {
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-align: center;
-}
-#format-select {
-    padding: 12px 15px;
-    font-size: 1rem;
-}
-@media (min-width: 768px) {
-    .converter-controls {
-        flex-direction: row;
-        align-items: center;
-        gap: 30px;
-    }
-    .file-upload-area {
-        flex-grow: 1;
-    }
-    .format-selector-container {
-        flex-direction: column;
-        max-width: 200px;
-        margin: 0;
-    }
-}
-/* END: NEW CONVERTER-SPECIFIC STYLES */
-
 
 /* --- START: ENHANCED COMPRESSOR SLIDER STYLES --- */
 .quality-slider-container {
@@ -1535,14 +1375,14 @@ body.no-scroll {
 }
 /* --- END: ENHANCED COMPRESSOR SLIDER STYLES --- */
 
-#compress-btn, #convert-btn {
+#compress-btn {
     width: 100%;
     max-width: 400px;
     padding-top: 15px;
     padding-bottom: 15px;
     border-radius: 12px;
 }
-#compress-loader, #convert-loader {
+#compress-loader {
     border: 5px solid var(--border-color);
     border-top: 5px solid var(--accent-primary);
     border-radius: 50%;
@@ -1551,7 +1391,7 @@ body.no-scroll {
     animation: spin 1s linear infinite;
     margin: 40px auto;
 }
-#compress-error, #convert-error {
+#compress-error {
     text-align: center;
     padding: 20px;
     margin-top: 20px;
@@ -1560,7 +1400,7 @@ body.no-scroll {
     background-color: #8C1C1B;
     border: 1px solid #FCA5A5;
 }
-[data-theme="light"] #compress-error, [data-theme="light"] #convert-error {
+[data-theme="light"] #compress-error {
     color: #991B1B;
     background-color: #FEE2E2;
 }
