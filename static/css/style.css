@@ -1341,6 +1341,26 @@ body.no-scroll {
     gap: 10px;
     width: 100%;
 }
+
+/* START: CONVERTER UI FIX STYLES */
+.target-format-display {
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 60px;
+    text-align: center;
+}
+.target-format-display::before {
+    content: 'to ';
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-right: 5px;
+}
+.status-badge.incompatible {
+    background-color: #8C1C1B;
+    color: white;
+}
+/* END: CONVERTER UI FIX STYLES */
+
 .file-actions .format-dropdown {
     flex-grow: 1;
     max-width: 120px;

@@ -413,7 +413,7 @@ function initExtractorTool() {
     }
 }
 
-// --- START: NEW, FULLY REVISED CONVERTER PAGE LOGIC (v2) ---
+// --- START: MODIFIED CONVERTER LOGIC TO FIX UI BUG ---
 function initConverterPage() {
     const form = document.getElementById('convert-form');
     if (!form) return;
@@ -431,9 +431,9 @@ function initConverterPage() {
     const errorContainer = document.getElementById('convert-error');
     
     // State
-    let files = []; // Array to hold File objects
-    let allFormats = null; // To store the entire conversion map
-    let groupedFormats = null; // To store formats grouped by category
+    let files = [];
+    let allFormats = null;
+    let groupedFormats = null;
 
     const showError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
@@ -441,14 +441,12 @@ function initConverterPage() {
         loader.classList.add('hidden');
     };
 
-    // Fetches all formats and prepares them for the UI
     const fetchAllFormats = async () => {
         try {
             const response = await fetch('/api/get-all-formats');
             if (!response.ok) throw new Error('Could not load format data.');
             allFormats = await response.json();
-
-            // Group formats by type for creating dropdowns
+            
             groupedFormats = {};
             const allOutputFormats = new Set();
             for (const inputFormat in allFormats) {
@@ -462,21 +460,16 @@ function initConverterPage() {
                     allOutputFormats.add(output);
                 });
             }
-             // Sort each category alphabetically
             for (const type in groupedFormats) {
                 groupedFormats[type] = Array.from(groupedFormats[type]).sort();
             }
-
-            // Populate the "Convert all to" dropdown
             populateCategorizedDropdown(convertAllSelect, Array.from(allOutputFormats).sort());
-
         } catch (error) {
             console.error(error);
             showError('Could not initialize the converter. Please refresh the page.');
         }
     };
     
-    // Helper to populate a <select> with <optgroup>
     const populateCategorizedDropdown = (selectElement, validOutputs = []) => {
         selectElement.innerHTML = '<option value="">Select...</option>';
         if (!groupedFormats) return;
@@ -487,19 +480,60 @@ function initConverterPage() {
             const optgroup = document.createElement('optgroup');
             optgroup.label = category.charAt(0).toUpperCase() + category.slice(1);
             
+            let hasValidOption = false;
             const formats = groupedFormats[category] || [];
             formats.forEach(format => {
                 const option = new Option(format.toUpperCase(), format);
-                // If a list of valid outputs is provided, disable invalid ones
                 if (validOutputs.length > 0 && !validOutputs.includes(format)) {
                     option.disabled = true;
+                } else {
+                    hasValidOption = true;
                 }
                 optgroup.appendChild(option);
             });
-            selectElement.appendChild(optgroup);
+
+            if (hasValidOption || validOutputs.length === 0) {
+                 selectElement.appendChild(optgroup);
+            }
         }
     };
+    
+    // NEW: Central function to update all file items based on the main dropdown
+    const updateFileStatuses = () => {
+        const targetFormat = convertAllSelect.value;
+        const fileItems = fileList.querySelectorAll('.file-item');
 
+        if (!targetFormat) {
+            fileItems.forEach(item => {
+                item.querySelector('.target-format-display').textContent = '...';
+                const statusBadge = item.querySelector('.status-badge');
+                statusBadge.textContent = 'WAITING';
+                statusBadge.className = 'status-badge';
+            });
+            return;
+        }
+
+        fileItems.forEach(item => {
+            const fileId = item.dataset.fileId;
+            const file = files.find(f => `${f.name}-${f.lastModified}` === fileId);
+            if (!file) return;
+
+            const inputExt = file.name.split('.').pop().toLowerCase();
+            const validOutputs = allFormats[inputExt]?.outputs || [];
+            const isCompatible = validOutputs.includes(targetFormat);
+            
+            item.querySelector('.target-format-display').textContent = targetFormat.toUpperCase();
+            const statusBadge = item.querySelector('.status-badge');
+
+            if (isCompatible) {
+                statusBadge.textContent = 'READY';
+                statusBadge.className = 'status-badge ready';
+            } else {
+                statusBadge.textContent = 'INCOMPATIBLE';
+                statusBadge.className = 'status-badge incompatible';
+            }
+        });
+    };
 
     const addFiles = (newFiles) => {
         dropZone.classList.add('hidden');
@@ -516,19 +550,6 @@ function initConverterPage() {
             clone.querySelector('.file-name').textContent = file.name;
             clone.querySelector('.file-size').textContent = formatBytes(file.size);
             
-            const dropdown = clone.querySelector('.format-dropdown');
-            const inputExt = file.name.split('.').pop().toLowerCase();
-            const validOutputs = allFormats[inputExt]?.outputs || [];
-
-            if (validOutputs.length > 0) {
-                populateCategorizedDropdown(dropdown, validOutputs);
-            } else {
-                dropdown.innerHTML = '<option>Unsupported</option>';
-                dropdown.disabled = true;
-                fileItem.querySelector('.status-badge').textContent = 'ERROR';
-                fileItem.querySelector('.status-badge').classList.add('error');
-            }
-
             clone.querySelector('.remove-file-btn').addEventListener('click', () => {
                 files = files.filter(f => `${f.name}-${f.lastModified}` !== fileId);
                 document.querySelector(`[data-file-id="${fileId}"]`).remove();
@@ -536,26 +557,16 @@ function initConverterPage() {
                     fileListContainer.classList.add('hidden');
                     dropZone.classList.remove('hidden');
                 }
+                updateFileStatuses(); // Update statuses when a file is removed
             });
 
             fileList.appendChild(clone);
         }
+        updateFileStatuses(); // Update statuses for all files after adding new ones
     };
     
-    convertAllSelect.addEventListener('change', () => {
-        const targetFormat = convertAllSelect.value;
-        if (targetFormat) {
-            fileList.querySelectorAll('.format-dropdown').forEach(dd => {
-                // Check if the target format is an enabled option in this dropdown
-                const option = dd.querySelector(`option[value="${targetFormat}"]`);
-                if (option && !option.disabled) {
-                    dd.value = targetFormat;
-                }
-            });
-        }
-    });
+    convertAllSelect.addEventListener('change', updateFileStatuses);
 
-    // Event Listeners
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-dragover'));
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragover'); addFiles(e.dataTransfer.files); });
@@ -565,7 +576,12 @@ function initConverterPage() {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (files.length === 0) return;
+        
+        const targetFormat = convertAllSelect.value;
+        if (!targetFormat) {
+            showError("Please select a format to convert all files to.");
+            return;
+        }
 
         loader.classList.remove('hidden');
         errorContainer.classList.add('hidden');
@@ -573,21 +589,22 @@ function initConverterPage() {
         convertBtn.textContent = 'Converting...';
 
         const formData = new FormData();
-        const fileItems = fileList.querySelectorAll('.file-item');
+        let filesToConvertCount = 0;
 
-        fileItems.forEach(item => {
-            const fileId = item.dataset.fileId;
-            const file = files.find(f => `${f.name}-${f.lastModified}` === fileId);
-            const targetFormat = item.querySelector('.format-dropdown').value;
+        files.forEach(file => {
+            const inputExt = file.name.split('.').pop().toLowerCase();
+            const validOutputs = allFormats[inputExt]?.outputs || [];
             
-            if (file && targetFormat && !item.querySelector('.format-dropdown').disabled) {
+            if (validOutputs.includes(targetFormat)) {
                 formData.append('files[]', file);
                 formData.append('targets[]', targetFormat);
+                filesToConvertCount++;
             }
         });
         
-        if (formData.getAll('files[]').length === 0) {
-            showError("No valid files or formats selected for conversion.");
+        if (filesToConvertCount === 0) {
+            showError("No compatible files to convert for the selected format.");
+            loader.classList.add('hidden');
             convertBtn.disabled = false;
             convertBtn.textContent = 'Convert';
             return;
@@ -608,18 +625,18 @@ function initConverterPage() {
             
             const disposition = response.headers.get('content-disposition');
             const filenameMatch = disposition && disposition.match(/filename="(.+?)"/);
-            a.download = filenameMatch ? filenameMatch[1] : 'converted.zip';
+            a.download = filenameMatch ? filenameMatch[1] : (filesToConvertCount > 1 ? 'converted_files.zip' : `converted.${targetFormat}`);
             
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
 
-            // Reset UI after successful download
             files = [];
             fileList.innerHTML = '';
             fileListContainer.classList.add('hidden');
             dropZone.classList.remove('hidden');
+            convertAllSelect.value = '';
 
         } catch (error) {
             showError(error.message);
@@ -630,10 +647,9 @@ function initConverterPage() {
         }
     });
 
-    // Initialize by fetching all formats
     fetchAllFormats();
 }
-// --- END: NEW, FULLY REVISED CONVERTER PAGE LOGIC (v2) ---
+// --- END: MODIFIED CONVERTER LOGIC ---
 
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
