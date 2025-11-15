@@ -807,7 +807,7 @@ section {
 
 /* --- 8. HELPERS --- */
 .hidden { display: none !important; }
-#loader, #compress-loader {
+#loader, #convert-loader, #compress-loader {
     border: 5px solid var(--border-color);
     border-top: 5px solid var(--accent-primary);
     border-radius: 50%;
@@ -818,7 +818,7 @@ section {
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-#error-message, #compress-error {
+#error-message, #convert-error, #compress-error {
     text-align: center;
     padding: 40px;
     margin-top: 40px;
@@ -828,6 +828,7 @@ section {
     border: 1px solid #FCA5A5;
 }
 [data-theme="light"] #error-message,
+[data-theme="light"] #convert-error,
 [data-theme="light"] #compress-error {
     color: #991B1B;
     background-color: #FEE2E2;
@@ -1133,7 +1134,8 @@ body.no-scroll {
     /* --- START: Full-width Buttons on Mobile --- */
     #extract-form button,
     #compress-btn,
-    #generate-pairing-btn {
+    #generate-pairing-btn,
+    #convert-btn {
         width: 100%;
         padding-top: 15px;
         padding-bottom: 15px;
@@ -1262,7 +1264,7 @@ body.no-scroll {
     /* --- END: Mobile Header Icon Size Adjustments --- */
 
 }
-/* --- 10. COMPRESSOR STYLES --- */
+/* --- 10. COMPRESSOR PAGE STYLES --- */
 .compressor-container {
     padding-bottom: 40px;
 }
@@ -1275,8 +1277,7 @@ body.no-scroll {
     max-width: 600px;
     margin: 0 auto;
 }
-
-.file-upload-area { /* Re-using some old styles for consistency */
+.file-upload-area {
     width: 100%;
     border: 2px dashed var(--border-color);
     border-radius: 16px;
@@ -1286,15 +1287,33 @@ body.no-scroll {
     position: relative;
     transition: border-color 0.3s, background-color 0.3s;
 }
+.file-upload-area:hover, .file-upload-area.is-dragover {
+    border-color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+.file-upload-area input[type="file"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
 #file-upload-prompt svg {
     color: var(--accent-primary);
     margin-bottom: 15px;
 }
 #file-upload-prompt p {
-    margin: 0; color: var(--text-primary); font-size: 1.1rem;
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
 }
 .file-type-info {
-    color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px; display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 5px;
+    display: block;
 }
 
 /* --- START: ENHANCED COMPRESSOR SLIDER STYLES --- */
@@ -1377,7 +1396,6 @@ body.no-scroll {
 
 #compress-btn {
     width: 100%;
-    max-width: 400px;
     padding-top: 15px;
     padding-bottom: 15px;
     border-radius: 12px;

@@ -49,7 +49,6 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From
 import subprocess # NEW IMPORT for running external tools
 
-
 load_dotenv()
 
 app = Flask(__name__, instance_relative_config=True)
@@ -70,7 +69,6 @@ app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
-
 
 @app.errorhandler(413)
 @app.errorhandler(RequestEntityTooLarge)
@@ -938,6 +936,9 @@ def contrast_checker_page() -> str: return render_template('contrast_checker.htm
 @app.route('/font-pairings')
 def font_pairings_page() -> str: return render_template('font_pairings.html')
 
+@app.route('/converter')
+def converter_page() -> str: return render_template('converter.html')
+
 @app.route('/about')
 def about_page() -> str: return render_template('about.html')
 
@@ -1223,6 +1224,64 @@ def compress_image() -> FlaskResponse:
             return jsonify({'error': 'An unexpected server error occurred during compression.'}), 500
 # END: DEBUGLOGGING FOR COMPRESS IMAGE
 
+# START: NEW CONVERTER ENDPOINT
+@app.route('/convert-to-png', methods=['POST'])
+@csrf.exempt
+def convert_to_png():
+    if not check_and_increment_usage():
+        return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'No file provided.'}), 400
+    
+    file = request.files['image']
+
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+
+    original_filename = secure_filename(file.filename)
+    file_bytes = file.read()
+
+    if len(file_bytes) > MAX_FILE_SIZE:
+        return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit.'}), 413
+
+    try:
+        # Use Pillow to open the image from bytes
+        image = Image.open(io.BytesIO(file_bytes))
+
+        # Handle palette-based images with transparency (like GIFs)
+        if image.mode == 'P' and 'transparency' in image.info:
+            image = image.convert('RGBA')
+        # Ensure other modes are converted properly for PNG saving
+        elif image.mode not in ['RGB', 'RGBA', 'L']:
+            image = image.convert('RGBA')
+
+        # Save the image to a new byte buffer in PNG format
+        output_buffer = io.BytesIO()
+        image.save(output_buffer, format='PNG')
+        output_buffer.seek(0)
+        
+        # Log the usage
+        track_usage('converter', metadata={'original_format': image.format})
+
+        # Prepare the filename for the download
+        base_filename = os.path.splitext(original_filename)[0]
+        download_name = f"{base_filename}.png"
+
+        return send_file(
+            output_buffer,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=download_name
+        )
+
+    except UnidentifiedImageError:
+        return jsonify({'error': 'Cannot identify image file. The format may be unsupported.'}), 400
+    except Exception as e:
+        app.logger.error(f"Error during image conversion: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'An unexpected error occurred during conversion.'}), 500
+# END: NEW CONVERTER ENDPOINT
 
 @app.route('/download-image')
 @login_required
