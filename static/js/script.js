@@ -413,305 +413,129 @@ function initExtractorTool() {
     }
 }
 
-// --- START: NEW CONVERTER PAGE LOGIC ---
-function initConverterPage() {
-    const convertForm = document.getElementById('convert-form');
-    if (!convertForm) return;
-
-    const imageInput = document.getElementById('image-input');
-    const fileUploadArea = document.getElementById('file-upload-area');
-    const fileUploadPrompt = document.getElementById('file-upload-prompt');
-    const loader = document.getElementById('convert-loader');
-    const errorContainer = document.getElementById('convert-error');
-    const resultsContainer = document.getElementById('convert-results');
-    const convertedPreview = document.getElementById('converted-preview');
-    const downloadBtn = document.getElementById('download-btn');
-    
-    let originalFile = null;
-
-    const showConvertError = (message) => {
-        errorContainer.textContent = `Error: ${message}`;
-        errorContainer.classList.remove('hidden');
-        resultsContainer.classList.add('hidden');
-    };
-    
-    const resetUI = () => {
-        errorContainer.classList.add('hidden');
-        resultsContainer.classList.add('hidden');
-        loader.classList.add('hidden');
-    };
-
-    const handleFileSelect = (file) => {
-        if (file) {
-            originalFile = file;
-            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${file.name}</strong></p><span class="file-type-info">Click to change</span>`;
-            resetUI();
-        }
-    };
-
-    imageInput.addEventListener('change', () => {
-        if (imageInput.files.length > 0) {
-            handleFileSelect(imageInput.files[0]);
-        }
-    });
-
-    fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
-    fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
-    fileUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.remove('is-dragover');
-        if (e.dataTransfer.files.length > 0) {
-             handleFileSelect(e.dataTransfer.files[0]);
-        }
-    });
-
-    convertForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!originalFile) {
-            showConvertError('Please select an image to convert.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('image', originalFile);
-
-        resetUI();
-        loader.classList.remove('hidden');
-        
-        try {
-            const response = await fetch('/convert-to-png', { method: 'POST', body: formData });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                if(response.status === 403) showUsageLimitModal();
-                throw new Error(errorData.error || `Conversion failed: Server responded with status ${response.status}`);
-            }
-
-            const blob = await response.blob();
-            const convertedUrl = URL.createObjectURL(blob);
-
-            convertedPreview.src = convertedUrl;
-            downloadBtn.href = convertedUrl;
-
-            const disposition = response.headers.get('Content-Disposition');
-            const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
-            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'converted.png';
-
-            resultsContainer.classList.remove('hidden');
-            resultsContainer.scrollIntoView({ behavior: 'smooth' });
-
-        } catch (error) {
-            showConvertError(error.message);
-        } finally {
-            loader.classList.add('hidden');
-        }
-    });
-}
-// --- END: NEW CONVERTER PAGE LOGIC ---
 
 // --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
 function initImageCompressorPage() {
     const compressForm = document.getElementById('compress-form');
     if (!compressForm) return;
 
-    // Get all DOM elements
     const imageInput = document.getElementById('image-input');
     const fileUploadArea = document.getElementById('file-upload-area');
     const fileUploadPrompt = document.getElementById('file-upload-prompt');
     const loader = document.getElementById('compress-loader');
     const errorContainer = document.getElementById('compress-error');
     const resultsContainer = document.getElementById('compress-results');
+    const originalSizeEl = document.getElementById('original-size');
+    const compressedSizeEl = document.getElementById('compressed-size');
+    const reductionPercentEl = document.getElementById('reduction-percent');
+    const originalPreview = document.getElementById('original-preview');
+    const compressedPreview = document.getElementById('compressed-preview');
+    const downloadBtn = document.getElementById('download-btn');
+    const compressionStatusMessage = document.getElementById('compression-status-message');
+    const reductionContainer = document.getElementById('reduction-container');
     const reductionSlider = document.getElementById('reduction-slider');
     const reductionValue = document.getElementById('reduction-value');
-    const compressBtn = document.getElementById('compress-btn');
-    const multiResultsList = document.getElementById('multi-results-list');
-    const totalStatsSummary = document.getElementById('total-stats-summary');
-    
-    // START: New Modal Elements
-    const comparisonModal = document.getElementById('comparison-modal');
-    const modalCloseBtn = document.getElementById('comparison-modal-close-btn');
-    const modalOriginalPreview = document.getElementById('modal-original-preview');
-    const modalCompressedPreview = document.getElementById('modal-compressed-preview');
-    // END: New Modal Elements
 
-    let selectedFiles = [];
+    let originalFile = null;
 
     const showCompressError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
     };
-    
-    const updateFileSelection = (files) => {
-        selectedFiles = Array.from(files);
-        if (selectedFiles.length === 0) {
-             fileUploadPrompt.innerHTML = `<svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-                        <p><strong>Click to upload</strong> or drag and drop</p>
-                        <span class="file-type-info">PNG or JPG (Max 10MB each)</span>`;
-            compressBtn.textContent = 'Compress Image';
-        } else if (selectedFiles.length === 1) {
-            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${selectedFiles[0].name}</strong></p><span class="file-type-info">Click or drop to change</span>`;
-            compressBtn.textContent = 'Compress Image';
-        } else {
-            fileUploadPrompt.innerHTML = `<p><strong>${selectedFiles.length} files selected</strong></p><span class="file-type-info">Click or drop to change</span>`;
-            compressBtn.textContent = `Compress ${selectedFiles.length} Images`;
+
+    imageInput.addEventListener('change', () => {
+        if (imageInput.files.length > 0) {
+            originalFile = imageInput.files[0];
+            const fileName = originalFile.name;
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
+            resultsContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+            if (reductionContainer) {
+                reductionContainer.style.display = 'flex';
+            }
         }
-        resultsContainer.classList.add('hidden');
-        errorContainer.classList.add('hidden');
-    };
-
-    imageInput.addEventListener('change', () => updateFileSelection(imageInput.files));
-    
-    fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
-    fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
-    fileUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.remove('is-dragover');
-        updateFileSelection(e.dataTransfer.files);
     });
-
+    
     if (reductionSlider && reductionValue) {
         const updateSliderAppearance = () => {
             reductionValue.textContent = `${reductionSlider.value}%`;
-            const fillPercent = (reductionSlider.value / reductionSlider.max) * 100;
+            const min = reductionSlider.min || 0;
+            const max = reductionSlider.max || 100;
+            const value = reductionSlider.value;
+            const fillPercent = ((value - min) / (max - min)) * 100;
             reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
         };
         reductionSlider.addEventListener('input', updateSliderAppearance);
         updateSliderAppearance();
     }
-    
-    // START: Modal close logic
-    if (comparisonModal && modalCloseBtn) {
-        const closeModal = () => comparisonModal.classList.remove('is-visible');
-        modalCloseBtn.addEventListener('click', closeModal);
-        comparisonModal.addEventListener('click', (e) => {
-            if (e.target === comparisonModal) closeModal();
-        });
-    }
-    // END: Modal close logic
 
-    const createResultCard = (file) => {
-        const card = document.createElement('div');
-        card.className = 'result-card-multi';
-        card.id = `result-card-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-        const thumbnailUrl = URL.createObjectURL(file);
-
-        card.innerHTML = `
-            <img class="result-thumbnail-multi" src="${thumbnailUrl}" alt="Thumbnail for ${file.name}">
-            <div class="result-info-multi">
-                <p class="filename-multi">${file.name}</p>
-                <p class="size-info-multi">
-                    <span class="original-size">${formatBytes(file.size)}</span> &rarr; <span class="compressed-size">...</span>
-                </p>
-                <p class="status-multi">Waiting...</p>
-            </div>
-            <div class="result-action-multi">
-                <span class="reduction-multi">-0%</span>
-                <!-- START: ADDED COMPARE BUTTON -->
-                <button class="btn btn-secondary compare-btn hidden">Compare</button>
-                <a href="#" class="btn btn-primary download-single-btn hidden">Download</a>
-                <!-- END: ADDED COMPARE BUTTON -->
-            </div>
-        `;
-        return card;
-    };
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('is-dragover');
+    });
+    fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('is-dragover');
+        imageInput.files = e.dataTransfer.files;
+        imageInput.dispatchEvent(new Event('change'));
+    });
 
     compressForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (selectedFiles.length === 0) {
-            showCompressError('Please select one or more images to compress.');
+        if (!originalFile) {
+            showCompressError('Please select an image to compress.');
             return;
         }
+        const formData = new FormData();
+        formData.append('image', originalFile);
+        formData.append('target_reduction', reductionSlider.value);
 
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
         errorContainer.classList.add('hidden');
-        multiResultsList.innerHTML = '';
-        totalStatsSummary.innerHTML = '';
+        if (compressionStatusMessage) compressionStatusMessage.textContent = '';
         
-        selectedFiles.forEach(file => {
-            const card = createResultCard(file);
-            multiResultsList.appendChild(card);
-        });
-        
-        resultsContainer.classList.remove('hidden');
-        loader.classList.add('hidden');
-
-        let totalOriginalSize = 0, totalCompressedSize = 0, successCount = 0;
-
-        for (const file of selectedFiles) {
-            const cardId = `result-card-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-            const card = document.getElementById(cardId);
-            const statusEl = card.querySelector('.status-multi');
-            statusEl.textContent = 'Compressing...';
-
-            const formData = new FormData();
-            formData.append('image', file);
-            formData.append('target_reduction', reductionSlider.value);
-
-            try {
-                const response = await fetch('/compress-image', { method: 'POST', body: formData });
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    if(response.status === 403) showUsageLimitModal();
-                    throw new Error(errorData.error || `Server responded with status ${response.status}`);
-                }
-
-                const blob = await response.blob();
-                const originalSize = parseInt(response.headers.get('X-Original-Size'), 10);
-                const compressedSize = parseInt(response.headers.get('X-Compressed-Size'), 10);
-
-                totalOriginalSize += originalSize;
-                totalCompressedSize += compressedSize;
-                successCount++;
-
-                card.querySelector('.compressed-size').textContent = formatBytes(compressedSize);
-                const reduction = ((originalSize - compressedSize) / originalSize) * 100;
-                card.querySelector('.reduction-multi').textContent = `-${Math.max(0, reduction).toFixed(1)}%`;
-                
-                const originalUrl = URL.createObjectURL(file);
-                const compressedUrl = URL.createObjectURL(blob);
-                
-                const downloadLink = card.querySelector('.download-single-btn');
-                downloadLink.href = compressedUrl;
-                const disposition = response.headers.get('Content-Disposition');
-                const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
-                downloadLink.download = filenameMatch ? filenameMatch[1] : `compressed-${file.name}`;
-                downloadLink.classList.remove('hidden');
-                
-                // START: Event Listener for Compare Button
-                const compareBtn = card.querySelector('.compare-btn');
-                compareBtn.classList.remove('hidden');
-                compareBtn.addEventListener('click', () => {
-                    modalOriginalPreview.src = originalUrl;
-                    modalCompressedPreview.src = compressedUrl;
-                    
-                    // Reset overlay width before showing
-                    const overlay = comparisonModal.querySelector('.img-comp-overlay');
-                    if(overlay) overlay.style.width = '50%';
-
-                    comparisonModal.classList.add('is-visible');
-                    initComparisons(); // Re-initialize slider on the visible modal
-                });
-                // END: Event Listener for Compare Button
-
-                statusEl.textContent = 'Success!';
-                statusEl.style.color = 'var(--accent-secondary)';
-
-            } catch (error) {
-                card.classList.add('is-error');
-                statusEl.textContent = error.message.substring(0, 50);
-                statusEl.classList.add('error-message');
+        try {
+            const response = await fetch('/compress-image', { method: 'POST', body: formData });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                if(response.status === 403) showUsageLimitModal();
+                throw new Error(errorData.error || `Compression failed: Server responded with status ${response.status}`);
             }
-        }
+            const blob = await response.blob();
+            const originalSize = response.headers.get('X-Original-Size');
+            const compressedSize = response.headers.get('X-Compressed-Size');
+            const compressionSuccessful = response.headers.get('X-Compression-Successful') === 'true';
 
-        if (successCount > 0) {
-            const totalReduction = ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100;
-            totalStatsSummary.innerHTML = `
-                Successfully compressed <strong>${successCount} of ${selectedFiles.length}</strong> images. 
-                Total saved: <strong class="total-reduction">${formatBytes(totalOriginalSize - totalCompressedSize)} (${totalReduction.toFixed(1)}%)</strong>
-            `;
-        } else {
-             totalStatsSummary.innerHTML = `<strong>Failed to compress ${selectedFiles.length} images.</strong>`;
+            originalSizeEl.textContent = formatBytes(originalSize);
+            compressedSizeEl.textContent = formatBytes(compressedSize);
+
+            const reduction = ((originalSize - compressedSize) / originalSize) * 100;
+            reductionPercentEl.textContent = `${Math.max(0, reduction).toFixed(1)}%`;
+            if (!compressionSuccessful && compressionStatusMessage) {
+                compressionStatusMessage.textContent = 'Could not meet target. Max compression applied.';
+            }
+
+            // Create object URLs for the previews
+            const originalUrl = URL.createObjectURL(originalFile);
+            const compressedUrl = URL.createObjectURL(blob);
+
+            originalPreview.src = originalUrl;
+            compressedPreview.src = compressedUrl;
+            downloadBtn.href = compressedUrl;
+            
+            const disposition = response.headers.get('Content-Disposition');
+            const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
+            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'compressed-image';
+            
+            resultsContainer.classList.remove('hidden');
+            initComparisons(); // Initialize the comparison slider
+
+        } catch (error) {
+            showCompressError(error.message);
+        } finally {
+            loader.classList.add('hidden');
         }
     });
 }
@@ -1276,5 +1100,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initUsageLimitModal(); // NEW
     initScrollAnimations();
     initMobileNavDropdowns();
-    initConverterPage(); // ADDED THIS LINE
 });

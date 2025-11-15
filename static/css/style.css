@@ -448,7 +448,7 @@ section {
 
 .all-in-one-content .tools-showcase-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(2, 1fr); /* 2x2 grid */
     gap: 25px;
     text-align: left;
 }
@@ -495,7 +495,6 @@ section {
 .tool-card-icon.icon-contrast { background-color: #4a69ff; }
 .tool-card-icon.icon-pairings { background-color: #4a69ff; }
 .tool-card-icon.icon-compressor { background-color: #4a69ff; }
-.tool-card-icon.icon-converter { background-color: #4a69ff; }
 
 .tool-card-icon img {
     width: 28px;
@@ -807,18 +806,10 @@ section {
 
 /* --- 8. HELPERS --- */
 .hidden { display: none !important; }
-#loader, #convert-loader, #compress-loader {
-    border: 5px solid var(--border-color);
-    border-top: 5px solid var(--accent-primary);
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    animation: spin 1s linear infinite;
-    margin: 60px auto;
-}
+#loader { border: 5px solid var(--border-color); border-top: 5px solid var(--accent-primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 60px auto; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-#error-message, #convert-error, #compress-error {
+#error-message {
     text-align: center;
     padding: 40px;
     margin-top: 40px;
@@ -827,9 +818,7 @@ section {
     background-color: #8C1C1B;
     border: 1px solid #FCA5A5;
 }
-[data-theme="light"] #error-message,
-[data-theme="light"] #convert-error,
-[data-theme="light"] #compress-error {
+[data-theme="light"] #error-message {
     color: #991B1B;
     background-color: #FEE2E2;
     border: 1px solid #FCA5A5;
@@ -1134,8 +1123,7 @@ body.no-scroll {
     /* --- START: Full-width Buttons on Mobile --- */
     #extract-form button,
     #compress-btn,
-    #generate-pairing-btn,
-    #convert-btn {
+    #generate-pairing-btn {
         width: 100%;
         padding-top: 15px;
         padding-bottom: 15px;
@@ -1423,135 +1411,66 @@ body.no-scroll {
     background-color: #FEE2E2;
 }
 
-/* --- START: NEW STYLES FOR MULTI-IMAGE COMPRESSION RESULTS --- */
-.multi-results-header {
+#compress-results .results-summary {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: space-around;
+    gap: 20px;
+    margin-bottom: 30px;
     flex-wrap: wrap;
-    gap: 20px;
+    background-color: var(--bg-primary);
     padding: 20px;
-    background-color: var(--bg-primary);
-    border-radius: 12px;
-    margin-bottom: 25px;
-}
-
-#total-stats-summary {
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-#total-stats-summary strong {
-    color: var(--text-primary);
-}
-#total-stats-summary .total-reduction {
-    color: var(--accent-secondary);
-}
-
-#multi-results-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.result-card-multi {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 15px;
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-color);
     border-radius: 12px;
 }
-.result-card-multi.is-error {
-    border-color: #8C1C1B;
-}
-
-.result-thumbnail-multi {
-    width: 60px;
-    height: 60px;
-    object-fit: cover;
-    border-radius: 8px;
-    background-color: var(--bg-secondary);
-    flex-shrink: 0;
-}
-
-.result-info-multi {
-    flex-grow: 1;
-    min-width: 0; /* Prevents text overflow issues in flexbox */
-}
-.result-info-multi p {
-    margin: 0;
-    line-height: 1.4;
-}
-.filename-multi {
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.size-info-multi, .status-multi {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-.status-multi.error-message {
-    color: #F87171;
-    font-weight: 600;
-}
-[data-theme="light"] .status-multi.error-message {
-    color: #B91C1C;
-}
-
-.result-action-multi {
-    display: flex;
-    align-items: center;
-    gap: 10px; /* Reduced gap to fit buttons */
-    text-align: right;
-}
-.reduction-multi {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--accent-secondary);
-    min-width: 50px;
-    margin-right: 10px; /* Add space between reduction and buttons */
-}
-.result-action-multi .btn {
-    padding: 8px 18px;
-    font-size: 0.9rem;
-}
-
-/* --- END: NEW STYLES --- */
-
-/* START: NEW STYLES FOR COMPARISON MODAL */
-.comparison-modal-content {
-    background-color: var(--bg-secondary);
-    border-radius: 16px;
-    padding: 20px 30px 30px 30px;
+.size-info {
     text-align: center;
-    width: 90%;
-    max-width: 1000px;
 }
-.comparison-modal-content h3 {
-    margin-bottom: 20px;
+.size-info strong {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 5px;
 }
-/* END: NEW STYLES FOR COMPARISON MODAL */
-
+.size-info span {
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+.size-info.reduction span {
+    color: var(--accent-secondary);
+}
+.image-previews {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+}
+.preview-box {
+    text-align: center;
+    background: var(--bg-primary);
+    padding: 15px;
+    border-radius: 12px;
+}
+.preview-box h3 {
+    margin-bottom: 15px;
+}
+.preview-box img {
+    max-width: 100%;
+    height: auto;
+    max-height: 300px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+#download-btn {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 15px;
+    border-radius: 12px;
+}
 
 @media (max-width: 768px) {
-    /* START: Mobile styles for new multi-results */
-    .result-card-multi {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-    .result-info-multi {
-        width: 100%;
-    }
-    .result-action-multi {
-        width: 100%;
-        justify-content: space-between;
-    }
-    .reduction-multi { margin-right: 0; }
-    /* END: Mobile styles */
+    .image-previews { grid-template-columns: 1fr; }
 }
 
 /* --- 11. STATIC CONTENT PAGE STYLES --- */

@@ -936,9 +936,6 @@ def contrast_checker_page() -> str: return render_template('contrast_checker.htm
 @app.route('/font-pairings')
 def font_pairings_page() -> str: return render_template('font_pairings.html')
 
-@app.route('/converter')
-def converter_page() -> str: return render_template('converter.html')
-
 @app.route('/about')
 def about_page() -> str: return render_template('about.html')
 
@@ -1037,6 +1034,69 @@ def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float,
         img_buffer = io.BytesIO(image_bytes)
         img = Image.open(img_buffer)
 
+        # Ensure image is in a compatible mode
+        if img.mode in ('P', 'PA'):
+            img = img.convert('RGBA' if file_ext == '.png' else 'RGB')
+        elif img.mode not in ('RGB', 'RGBA', 'L'):
+             img = img.convert('RGB')
+
+        output_buffer = io.BytesIO()
+
+        if file_ext in ['.jpg', '.jpeg']:
+            best_bytes = None
+            # Try a range of qualities to meet the target
+            for quality in range(85, 39, -5): # Lowered the minimum quality to 40
+                output_buffer.seek(0)
+                output_buffer.truncate(0)
+                img.save(output_buffer, format='JPEG', quality=quality, optimize=True)
+                current_bytes = output_buffer.getvalue()
+                # If we hit the target size, we're done
+                if len(current_bytes) <= target_size:
+                    best_bytes = current_bytes
+                    break
+                # Otherwise, keep the smallest result so far
+                if best_bytes is None or len(current_bytes) < len(best_bytes):
+                    best_bytes = current_bytes
+            return best_bytes
+
+        elif file_ext == '.png':
+            # --- START: ADVANCED PNG FALLBACK ---
+            # This is a powerful technique that significantly reduces PNG size
+            # by reducing the number of colors, similar to pngquant.
+            quantized_img = img.quantize(colors=256, method=Image.Quantize.LIBIMAGEQUANT)
+            quantized_buffer = io.BytesIO()
+            # We save and then read back to get the final compressed size
+            quantized_img.save(quantized_buffer, format='PNG', optimize=True)
+            quantized_bytes = quantized_buffer.getvalue()
+
+            # For comparison, also run the basic optimization
+            basic_buffer = io.BytesIO()
+            img.save(basic_buffer, format='PNG', optimize=True)
+            basic_bytes = basic_buffer.getvalue()
+
+            # Return whichever result is smaller
+            if len(quantized_bytes) < len(basic_bytes):
+                app.logger.info("Pillow fallback: Quantization was more effective.")
+                return quantized_bytes
+            else:
+                app.logger.info("Pillow fallback: Basic optimization was more effective.")
+                return basic_bytes
+            # --- END: ADVANCED PNG FALLBACK ---
+
+        return None
+    except Exception as e:
+        app.logger.error(f"Pillow fallback compression failed: {e}")
+        return image_bytes
+# --- END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+
+
+# --- START: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float, original_size: int) -> Optional[bytes]:
+    """Fallback compression using Pillow if external tools are missing."""
+    try:
+        img_buffer = io.BytesIO(image_bytes)
+        img = Image.open(img_buffer)
+
         if img.mode in ('P', 'PA'):
             img = img.convert('RGBA' if file_ext == '.png' else 'RGB')
         elif img.mode not in ('RGB', 'RGBA', 'L'):
@@ -1085,6 +1145,7 @@ def _compress_with_pillow(image_bytes: bytes, file_ext: str, target_size: float,
         app.logger.error(f"Pillow fallback compression failed: {e}")
         return image_bytes
 # --- END: NEW HELPER FUNCTION FOR PILLOW FALLBACK
+
 
 # START: DEBUGLOGGING FOR COMPRESS IMAGE
 @app.route('/compress-image', methods=['POST'])
@@ -1224,64 +1285,6 @@ def compress_image() -> FlaskResponse:
             return jsonify({'error': 'An unexpected server error occurred during compression.'}), 500
 # END: DEBUGLOGGING FOR COMPRESS IMAGE
 
-# START: NEW CONVERTER ENDPOINT
-@app.route('/convert-to-png', methods=['POST'])
-@csrf.exempt
-def convert_to_png():
-    if not check_and_increment_usage():
-        return jsonify({'error': 'Usage limit reached. Please create an account to continue.'}), 403
-
-    if 'image' not in request.files:
-        return jsonify({'error': 'No file provided.'}), 400
-    
-    file = request.files['image']
-
-    if file.filename == '':
-        return jsonify({'error': 'No file selected.'}), 400
-
-    original_filename = secure_filename(file.filename)
-    file_bytes = file.read()
-
-    if len(file_bytes) > MAX_FILE_SIZE:
-        return jsonify({'error': f'File size exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit.'}), 413
-
-    try:
-        # Use Pillow to open the image from bytes
-        image = Image.open(io.BytesIO(file_bytes))
-
-        # Handle palette-based images with transparency (like GIFs)
-        if image.mode == 'P' and 'transparency' in image.info:
-            image = image.convert('RGBA')
-        # Ensure other modes are converted properly for PNG saving
-        elif image.mode not in ['RGB', 'RGBA', 'L']:
-            image = image.convert('RGBA')
-
-        # Save the image to a new byte buffer in PNG format
-        output_buffer = io.BytesIO()
-        image.save(output_buffer, format='PNG')
-        output_buffer.seek(0)
-        
-        # Log the usage
-        track_usage('converter', metadata={'original_format': image.format})
-
-        # Prepare the filename for the download
-        base_filename = os.path.splitext(original_filename)[0]
-        download_name = f"{base_filename}.png"
-
-        return send_file(
-            output_buffer,
-            mimetype='image/png',
-            as_attachment=True,
-            download_name=download_name
-        )
-
-    except UnidentifiedImageError:
-        return jsonify({'error': 'Cannot identify image file. The format may be unsupported.'}), 400
-    except Exception as e:
-        app.logger.error(f"Error during image conversion: {e}")
-        traceback.print_exc()
-        return jsonify({'error': 'An unexpected error occurred during conversion.'}), 500
-# END: NEW CONVERTER ENDPOINT
 
 @app.route('/download-image')
 @login_required
