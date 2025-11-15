@@ -2022,20 +2022,20 @@ body.no-scroll {
     box-shadow: var(--shadow-color) 0px 20px 40px;
 }
 .mockup-display-area {
-    position: relative;
-    height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    height: 450px;
     width: 100%;
     margin: 40px auto 60px;
-    max-width: 650px;
-    overflow: hidden;
+    max-width: 900px;
+    position: relative;
 }
 .mockup-laptop {
-    position: absolute;
+    position: relative;
     width: 100%;
+    max-width: 650px;
     height: 90%;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
     z-index: 1;
 }
 .mockup-laptop .screen {
@@ -2050,7 +2050,7 @@ body.no-scroll {
 .mockup-laptop .base {
     position: relative;
     z-index: 1;
-    width: 100%; 
+    width: 100%;
     height: 20px;
     left: 50%;
     transform: translateX(-50%);
@@ -2058,10 +2058,10 @@ body.no-scroll {
     border-top: 1px solid #b8c0cc;
     border-bottom-left-radius: 10px;
     border-bottom-right-radius: 10px;
-    top: -6px; 
+    top: -6px;
 }
 [data-theme="dark"] .mockup-laptop .screen { border-color: #333; }
-[data-theme="dark"] .mockup-laptop .base { 
+[data-theme="dark"] .mockup-laptop .base {
     background: linear-gradient(#4a5568, #3f4a5a);
     border-top: 1px solid #2d3748;
 }
@@ -2077,11 +2077,11 @@ body.no-scroll {
     left: 50%;
     transform: translateX(-50%);
 }
-[data-theme="dark"] .mockup-laptop .base::after { 
-    background-color: #2c3543; 
+[data-theme="dark"] .mockup-laptop .base::after {
+    background-color: #2c3543;
 }
 .mockup-phone {
-    position: absolute;
+    position: relative;
     z-index: 2;
     width: 160px;
     height: 320px;
@@ -2089,8 +2089,9 @@ body.no-scroll {
     border-radius: 28px;
     border: 8px solid var(--text-primary);
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    bottom: -15px;
-    right: -10%; 
+    margin-bottom: -15px; /* Adjust vertical position */
+    margin-left: -50px; /* Pull it left to overlap the laptop */
+    flex-shrink: 0; /* Prevent phone from shrinking */
 }
 [data-theme="dark"] .mockup-phone { background-color: #333; border-color: #333; }
 .mockup-phone .screen {
@@ -2127,9 +2128,8 @@ body.no-scroll {
     flex-direction: column;
     justify-content: center;
 }
-#font-preview-panel-laptop { 
+#font-preview-panel-laptop {
     padding: 4% 6%;
-    padding-right: 190px; 
 }
 #font-preview-panel-phone { padding: 12% 10%; }
 
