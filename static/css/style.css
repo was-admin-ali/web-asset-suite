@@ -3872,3 +3872,128 @@ body.no-scroll {
     }
 }
 /* --- END: MOBILE PALETTE GRID FIX --- */
+
+/* --- START: MULTI-FILE COMPRESSOR RESULTS STYLES --- */
+#compress-results .multi-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#total-stats-summary {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+}
+
+#multi-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.result-card {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    align-items: center;
+    gap: 20px;
+    background-color: var(--bg-primary);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.result-card-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.result-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.result-card-preview.is-error {
+    color: #EF4444;
+}
+[data-theme="light"] .result-card-preview.is-error {
+    color: #DC2626;
+}
+
+.result-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0; /* Prevents text overflow issues */
+}
+
+.result-card-filename {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-card-stats {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.result-card-stats .reduction {
+    font-weight: 700;
+    color: var(--accent-secondary);
+}
+
+.result-card-info .error-message {
+    color: #F87171;
+    font-size: 0.9rem;
+}
+[data-theme="light"] .result-card-info .error-message {
+    color: #B91C1C;
+}
+
+.result-card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Comparison Modal Specific Styles */
+.comparison-modal-content {
+    background-color: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 20px;
+    width: 90%;
+    max-width: 1200px;
+    text-align: center;
+}
+.comparison-modal-content h3 {
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .result-card {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+    .result-card-preview {
+        margin: 0 auto 15px auto;
+    }
+    .result-card-stats, .result-card-actions {
+        justify-content: center;
+    }
+}
+/* --- END: MULTI-FILE COMPRESSOR RESULTS STYLES --- */

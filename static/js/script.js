@@ -414,65 +414,150 @@ function initExtractorTool() {
 }
 
 
-// --- START: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
+// --- START: FULLY REVISED, MULTI-FILE IMAGE COMPRESSOR LOGIC ---
 function initImageCompressorPage() {
     const compressForm = document.getElementById('compress-form');
     if (!compressForm) return;
 
+    // --- DOM ELEMENT REFERENCES ---
     const imageInput = document.getElementById('image-input');
     const fileUploadArea = document.getElementById('file-upload-area');
     const fileUploadPrompt = document.getElementById('file-upload-prompt');
     const loader = document.getElementById('compress-loader');
     const errorContainer = document.getElementById('compress-error');
     const resultsContainer = document.getElementById('compress-results');
-    const originalSizeEl = document.getElementById('original-size');
-    const compressedSizeEl = document.getElementById('compressed-size');
-    const reductionPercentEl = document.getElementById('reduction-percent');
-    const originalPreview = document.getElementById('original-preview');
-    const compressedPreview = document.getElementById('compressed-preview');
-    const downloadBtn = document.getElementById('download-btn');
-    const compressionStatusMessage = document.getElementById('compression-status-message');
-    const reductionContainer = document.getElementById('reduction-container');
+    const totalStatsSummaryEl = document.getElementById('total-stats-summary');
+    const multiResultsListEl = document.getElementById('multi-results-list');
+    const downloadAllBtn = document.getElementById('download-all-btn');
     const reductionSlider = document.getElementById('reduction-slider');
     const reductionValue = document.getElementById('reduction-value');
 
-    let originalFile = null;
+    // Modal elements
+    const comparisonModal = document.getElementById('comparison-modal');
+    const modalCloseBtn = document.getElementById('comparison-modal-close-btn');
+    const modalOriginalPreview = document.getElementById('modal-original-preview');
+    const modalCompressedPreview = document.getElementById('modal-compressed-preview');
 
+    let selectedFiles = []; // Store the FileList object
+
+    // --- HELPER FUNCTIONS ---
     const showCompressError = (message) => {
         errorContainer.textContent = `Error: ${message}`;
         errorContainer.classList.remove('hidden');
     };
-
-    imageInput.addEventListener('change', () => {
-        if (imageInput.files.length > 0) {
-            originalFile = imageInput.files[0];
-            const fileName = originalFile.name;
-            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${fileName}</strong></p><span class="file-type-info">Click to change</span>`;
-            resultsContainer.classList.add('hidden');
-            errorContainer.classList.add('hidden');
-            if (reductionContainer) {
-                reductionContainer.style.display = 'flex';
-            }
-        }
-    });
     
-    if (reductionSlider && reductionValue) {
-        const updateSliderAppearance = () => {
-            reductionValue.textContent = `${reductionSlider.value}%`;
-            const min = reductionSlider.min || 0;
-            const max = reductionSlider.max || 100;
-            const value = reductionSlider.value;
-            const fillPercent = ((value - min) / (max - min)) * 100;
-            reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
-        };
-        reductionSlider.addEventListener('input', updateSliderAppearance);
-        updateSliderAppearance();
-    }
+    const updateUploadPrompt = () => {
+        if (selectedFiles.length === 0) {
+             fileUploadPrompt.innerHTML = `
+                <svg width="50" height="50" viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                <p><strong>Click to upload</strong> or drag and drop</p>
+                <span class="file-type-info">PNG or JPG (Max 10MB each)</span>`;
+        } else if (selectedFiles.length === 1) {
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${selectedFiles[0].name}</strong></p><span class="file-type-info">Click to change or add more</span>`;
+        } else {
+            fileUploadPrompt.innerHTML = `<p>Selected: <strong>${selectedFiles.length} images</strong></p><span class="file-type-info">Click to change</span>`;
+        }
+    };
 
-    fileUploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileUploadArea.classList.add('is-dragover');
+    // --- SINGLE IMAGE COMPRESSION LOGIC ---
+    const compressSingleImage = async (file) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('target_reduction', reductionSlider.value);
+        
+        try {
+            const response = await fetch('/compress-image', { method: 'POST', body: formData });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                if (response.status === 403) showUsageLimitModal();
+                throw new Error(errorData.error || `Compression failed for ${file.name}`);
+            }
+
+            const blob = await response.blob();
+            const originalSize = parseInt(response.headers.get('X-Original-Size'), 10);
+            const compressedSize = parseInt(response.headers.get('X-Compressed-Size'), 10);
+            
+            return {
+                originalFile: file,
+                compressedBlob: blob,
+                originalSize,
+                compressedSize,
+                success: true
+            };
+        } catch (error) {
+            return {
+                originalFile: file,
+                error: error.message,
+                success: false
+            };
+        }
+    };
+
+    // --- UI UPDATE FUNCTIONS ---
+    const createResultCard = (result) => {
+        const card = document.createElement('div');
+        card.className = 'result-card';
+        
+        const originalUrl = URL.createObjectURL(result.originalFile);
+        
+        let content = '';
+
+        if (result.success) {
+            const compressedUrl = URL.createObjectURL(result.compressedBlob);
+            const reduction = ((result.originalSize - result.compressedSize) / result.originalSize) * 100;
+            const filename = `compressed_${result.originalFile.name}`;
+
+            content = `
+                <div class="result-card-preview">
+                    <img src="${compressedUrl}" alt="Compressed preview of ${result.originalFile.name}" loading="lazy">
+                </div>
+                <div class="result-card-info">
+                    <strong class="result-card-filename">${result.originalFile.name}</strong>
+                    <div class="result-card-stats">
+                        <span>${formatBytes(result.originalSize)} &rarr; ${formatBytes(result.compressedSize)}</span>
+                        <span class="reduction">${Math.max(0, reduction).toFixed(1)}%</span>
+                    </div>
+                </div>
+                <div class="result-card-actions">
+                    <button class="btn btn-secondary compare-btn">Compare</button>
+                    <a href="${compressedUrl}" download="${filename}" class="btn btn-primary">Download</a>
+                </div>`;
+            card.innerHTML = content;
+            
+            // Add event listener for the compare button
+            card.querySelector('.compare-btn').addEventListener('click', () => {
+                modalOriginalPreview.src = originalUrl;
+                modalCompressedPreview.src = compressedUrl;
+                comparisonModal.classList.add('is-visible');
+                // Re-initialize the slider every time the modal opens with new images
+                initComparisons(); 
+            });
+
+        } else {
+            content = `
+                <div class="result-card-preview is-error">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="40" height="40"><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clip-rule="evenodd" /></svg>
+                </div>
+                <div class="result-card-info">
+                    <strong class="result-card-filename">${result.originalFile.name}</strong>
+                    <span class="error-message">${result.error}</span>
+                </div>`;
+            card.innerHTML = content;
+        }
+        
+        multiResultsListEl.appendChild(card);
+    };
+
+    // --- EVENT LISTENERS ---
+    imageInput.addEventListener('change', () => {
+        selectedFiles = Array.from(imageInput.files);
+        updateUploadPrompt();
+        resultsContainer.classList.add('hidden');
+        errorContainer.classList.add('hidden');
     });
+
+    fileUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); fileUploadArea.classList.add('is-dragover'); });
     fileUploadArea.addEventListener('dragleave', () => fileUploadArea.classList.remove('is-dragover'));
     fileUploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
@@ -481,65 +566,71 @@ function initImageCompressorPage() {
         imageInput.dispatchEvent(new Event('change'));
     });
 
+    if (reductionSlider && reductionValue) {
+        const updateSlider = () => {
+            reductionValue.textContent = `${reductionSlider.value}%`;
+            const fillPercent = (reductionSlider.value / (reductionSlider.max || 90)) * 100;
+            reductionSlider.style.setProperty('--slider-fill-percent', `${fillPercent}%`);
+        };
+        reductionSlider.addEventListener('input', updateSlider);
+        updateSlider();
+    }
+
+    if (modalCloseBtn) {
+        const closeModal = () => comparisonModal.classList.remove('is-visible');
+        modalCloseBtn.addEventListener('click', closeModal);
+        comparisonModal.addEventListener('click', (e) => {
+            if (e.target === comparisonModal) closeModal();
+        });
+    }
+
     compressForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!originalFile) {
-            showCompressError('Please select an image to compress.');
+        if (selectedFiles.length === 0) {
+            showCompressError('Please select one or more images to compress.');
             return;
         }
-        const formData = new FormData();
-        formData.append('image', originalFile);
-        formData.append('target_reduction', reductionSlider.value);
+        if (!checkUsageLimit()) return;
 
         loader.classList.remove('hidden');
         resultsContainer.classList.add('hidden');
         errorContainer.classList.add('hidden');
-        if (compressionStatusMessage) compressionStatusMessage.textContent = '';
+        multiResultsListEl.innerHTML = '';
+        totalStatsSummaryEl.innerHTML = '';
         
-        try {
-            const response = await fetch('/compress-image', { method: 'POST', body: formData });
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                if(response.status === 403) showUsageLimitModal();
-                throw new Error(errorData.error || `Compression failed: Server responded with status ${response.status}`);
+        const compressionPromises = selectedFiles.map(compressSingleImage);
+        const results = await Promise.all(compressionPromises);
+        
+        let totalOriginalSize = 0;
+        let totalCompressedSize = 0;
+        let successCount = 0;
+        
+        results.forEach(result => {
+            createResultCard(result);
+            if(result.success) {
+                totalOriginalSize += result.originalSize;
+                totalCompressedSize += result.compressedSize;
+                successCount++;
             }
-            const blob = await response.blob();
-            const originalSize = response.headers.get('X-Original-Size');
-            const compressedSize = response.headers.get('X-Compressed-Size');
-            const compressionSuccessful = response.headers.get('X-Compression-Successful') === 'true';
-
-            originalSizeEl.textContent = formatBytes(originalSize);
-            compressedSizeEl.textContent = formatBytes(compressedSize);
-
-            const reduction = ((originalSize - compressedSize) / originalSize) * 100;
-            reductionPercentEl.textContent = `${Math.max(0, reduction).toFixed(1)}%`;
-            if (!compressionSuccessful && compressionStatusMessage) {
-                compressionStatusMessage.textContent = 'Could not meet target. Max compression applied.';
-            }
-
-            // Create object URLs for the previews
-            const originalUrl = URL.createObjectURL(originalFile);
-            const compressedUrl = URL.createObjectURL(blob);
-
-            originalPreview.src = originalUrl;
-            compressedPreview.src = compressedUrl;
-            downloadBtn.href = compressedUrl;
-            
-            const disposition = response.headers.get('Content-Disposition');
-            const filenameMatch = disposition && disposition.match(/filename="(.+)"/);
-            downloadBtn.download = filenameMatch ? filenameMatch[1] : 'compressed-image';
-            
-            resultsContainer.classList.remove('hidden');
-            initComparisons(); // Initialize the comparison slider
-
-        } catch (error) {
-            showCompressError(error.message);
-        } finally {
-            loader.classList.add('hidden');
+        });
+        
+        if (successCount > 0) {
+            incrementUsageCount();
+            const totalReduction = ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) * 100;
+            totalStatsSummaryEl.innerHTML = `
+                Successfully compressed <strong>${successCount} of ${results.length}</strong> images. 
+                Total saved: <strong>${formatBytes(totalOriginalSize - totalCompressedSize)}</strong> 
+                (${totalReduction.toFixed(1)}% reduction).`;
+        } else {
+             totalStatsSummaryEl.innerHTML = 'Compression failed for all images.';
         }
+
+        loader.classList.add('hidden');
+        resultsContainer.classList.remove('hidden');
     });
 }
-// --- END: EDITED IMAGE COMPRESSOR PAGE LOGIC ---
+// --- END: FULLY REVISED, MULTI-FILE IMAGE COMPRESSOR LOGIC ---
+
 
 // --- START: NEW IMAGE COMPARISON SLIDER LOGIC ---
 function initComparisons() {
